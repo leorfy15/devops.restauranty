@@ -7,3 +7,9 @@ server/.env
 backend/*/.env
 backend/*/node_modules
 mobile/.expo
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+Dockerfile

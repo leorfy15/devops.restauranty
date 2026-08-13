@@ -1,0 +1,66 @@
+services:
+
+  mongodb:
+    image: mongo:8
+    container_name: restauranty-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - restauranty-network
+
+
+  auth:
+    build:
+      context: ./auth
+    container_name: restauranty-auth
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/Restauranty
+    depends_on:
+      - mongodb
+    networks:
+      - restauranty-network
+
+
+  discounts:
+    build:
+      context: ./discounts
+    container_name: restauranty-discounts
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/Restauranty
+    depends_on:
+      - mongodb
+    networks:
+      - restauranty-network
+
+
+  items:
+    build:
+      context: ./items
+    container_name: restauranty-items
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/Restauranty
+    depends_on:
+      - mongodb
+    networks:
+      - restauranty-network
+
+
+volumes:
+  mongodb_data:
+
+
+networks:
+  restauranty-network:
+    driver: bridge

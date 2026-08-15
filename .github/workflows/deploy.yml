@@ -1,0 +1,136 @@
+name: Build and Deploy Restauranty
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: acrrestaurantytatiana
+  ACR_LOGIN_SERVER: acrrestaurantytatiana.azurecr.io
+  RESOURCE_GROUP: rg-restauranty-dev-tatiana
+  AKS_CLUSTER: aks-restauranty-dev
+  NAMESPACE: restauranty
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name $ACR_NAME
+
+      - name: Set image tag
+        run: |
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build and push Auth image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG \
+            ./backend/auth
+
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG
+
+      - name: Build and push Discounts image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG \
+            ./backend/discounts
+
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG
+
+      - name: Build and push Items image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG \
+            ./backend/items
+
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG
+
+      - name: Build and push Client image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG \
+            ./client
+
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group $RESOURCE_GROUP \
+            --name $AKS_CLUSTER \
+            --overwrite-existing
+
+      - name: Deploy Auth
+        run: |
+          kubectl set image \
+            deployment/restauranty-auth \
+            auth=$ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG \
+            -n $NAMESPACE
+
+      - name: Deploy Discounts
+        run: |
+          kubectl set image \
+            deployment/restauranty-discounts \
+            discounts=$ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG \
+            -n $NAMESPACE
+
+      - name: Deploy Items
+        run: |
+          kubectl set image \
+            deployment/restauranty-items \
+            items=$ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG \
+            -n $NAMESPACE
+
+      - name: Deploy Client
+        run: |
+          kubectl set image \
+            deployment/restauranty-client \
+            client=$ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG \
+            -n $NAMESPACE
+
+      - name: Wait for rollouts
+        run: |
+          kubectl rollout status deployment/restauranty-auth \
+            -n $NAMESPACE --timeout=300s
+
+          kubectl rollout status deployment/restauranty-discounts \
+            -n $NAMESPACE --timeout=300s
+
+          kubectl rollout status deployment/restauranty-items \
+            -n $NAMESPACE --timeout=300s
+
+          kubectl rollout status deployment/restauranty-client \
+            -n $NAMESPACE --timeout=300s
+
+      - name: Show deployment status
+        run: |
+          kubectl get pods -n $NAMESPACE
+          kubectl get ingress -n $NAMESPACE

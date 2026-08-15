@@ -5,10 +5,10 @@ set -e
 RG="rg-restauranty-dev-tatiana"
 AKS="aks-restauranty-dev"
 
-echo "Stopping AKS cluster..."
+echo "Stopping Restauranty AKS..."
 
 az aks stop \
   --name "$AKS" \
   --resource-group "$RG"
 
-echo "AKS cluster stopped."
+echo "AKS stopped."

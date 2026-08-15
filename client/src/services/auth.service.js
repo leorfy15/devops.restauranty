@@ -3,42 +3,37 @@ import axios from "axios";
 class AuthService {
   constructor() {
     this.api = axios.create({
-      baseURL: process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_SERVER_AUTH_URL || "http://localhost:80",
+      baseURL:
+        process.env.REACT_APP_SERVER_URL ||
+        window.location.origin,
     });
 
-    // Automatically set JWT token on the request headers for every request
     this.api.interceptors.request.use((config) => {
-      // Retrieve the JWT token from the local storage
       const storedToken = localStorage.getItem("authToken");
 
       if (storedToken) {
-        config.headers = { Authorization: `Bearer ${storedToken}` };
+        config.headers = {
+          Authorization: `Bearer ${storedToken}`,
+        };
       }
 
       return config;
     });
   }
 
-  login = (requestBody) => {
+  login(requestBody) {
     return this.api.post("/api/auth/login", requestBody);
-    // same as
-    // return axios.post("http://149.100.138.125:6001/auth/login");
-  };
+  }
 
-  signup = (requestBody) => {
+  signup(requestBody) {
     return this.api.post("/api/auth/signup", requestBody);
-    // same as
-    // return axios.post("http://149.100.138.125:6001/auth/singup");
-  };
+  }
 
-  verify = () => {
+  verify() {
     return this.api.get("/api/auth/verify");
-    // same as
-    // return axios.post("http://149.100.138.125:6001/auth/verify");
-  };
+  }
 }
 
-// Create one instance (object) of the service
 const authService = new AuthService();
 
 export default authService;

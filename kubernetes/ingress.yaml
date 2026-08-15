@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: restauranty-ingress
+  namespace: restauranty
+
+spec:
+  ingressClassName: webapprouting.kubernetes.azure.com
+
+  rules:
+    - http:
+        paths:
+
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth
+                port:
+                  number: 3001
+
+          - path: /api/discounts
+            pathType: Prefix
+            backend:
+              service:
+                name: discounts
+                port:
+                  number: 3002
+
+          - path: /api/items
+            pathType: Prefix
+            backend:
+              service:
+                name: items
+                port:
+                  number: 3003
+
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: client
+                port:
+                  number: 80

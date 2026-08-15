@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: restauranty-client
   namespace: restauranty
+
 spec:
   replicas: 2
 
@@ -18,18 +19,18 @@ spec:
     spec:
       containers:
         - name: client
-          image: acrrestaurantytatiana.azurecr.io/restauranty-client:v1
+          image: acrrestaurantytatiana.azurecr.io/restauranty-client:v7
 
           ports:
-            - containerPort: 3000
+            - containerPort: 80
 
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "50m"
+              memory: "64Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "250m"
+              memory: "256Mi"
 
 ---
 apiVersion: v1
@@ -37,13 +38,13 @@ kind: Service
 metadata:
   name: client
   namespace: restauranty
+
 spec:
   selector:
     app: restauranty-client
 
   ports:
     - port: 80
-      targetPort: 3000
+      targetPort: 80
 
-  type: LoadBalancer
-  
+  type: ClusterIP

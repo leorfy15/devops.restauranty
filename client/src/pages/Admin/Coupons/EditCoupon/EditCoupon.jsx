@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 
-const url = process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_SERVER_DISCOUNTS_URL || "http://localhost:80"
+const url = process.env.REACT_APP_SERVER_URL || window.location.origin;
 
 function EditCoupon() {
     const [coupon, setCoupon] = useState("");

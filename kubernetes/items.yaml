@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: restauranty-items
   namespace: restauranty
+
 spec:
   replicas: 2
 
@@ -18,7 +19,6 @@ spec:
     spec:
       containers:
         - name: items
-
           image: acrrestaurantytatiana.azurecr.io/restauranty-items:v1
 
           ports:
@@ -27,6 +27,24 @@ spec:
           env:
             - name: MONGODB_URI
               value: "mongodb://mongodb:27017/Restauranty"
+
+            - name: CLOUD_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: CLOUD_NAME
+
+            - name: CLOUD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: CLOUD_API_KEY
+
+            - name: CLOUD_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: CLOUD_API_SECRET
 
           resources:
             requests:
@@ -42,6 +60,7 @@ kind: Service
 metadata:
   name: items
   namespace: restauranty
+
 spec:
   selector:
     app: restauranty-items

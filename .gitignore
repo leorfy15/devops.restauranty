@@ -1,15 +1,49 @@
+# =========================
+# Node dependencies
+# =========================
 client/node_modules
 mobile/node_modules
 server/node_modules
+backend/*/node_modules
+node_modules
+
+# =========================
+# Environment / secrets
+# =========================
 client/.env
 mobile/.env
 server/.env
 backend/*/.env
-backend/*/node_modules
-mobile/.expo
-node_modules
-npm-debug.log
 .env
-.git
-.gitignore
-Dockerfile
+
+# Kubernetes secrets
+kubernetes/cloudinary-secret.yaml
+
+# =========================
+# Expo
+# =========================
+mobile/.expo
+
+# =========================
+# Logs
+# =========================
+npm-debug.log
+
+# =========================
+# Build files
+# =========================
+build
+
+# =========================
+# Terraform
+# =========================
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# =========================
+# OS
+# =========================
+.DS_Store

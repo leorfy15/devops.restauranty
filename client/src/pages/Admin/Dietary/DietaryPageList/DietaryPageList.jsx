@@ -5,8 +5,8 @@ import { Link } from "react-router-dom";
 import { FaTrashCan } from "react-icons/fa6"
 import { FaPen } from "react-icons/fa6"
 
-const url = process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_SERVER_ITEMS_URL || "http://localhost:80"
-
+const url = process.env.REACT_APP_SERVER_URL || window.location.origin;
+  
 function DietaryPageList() {
     const [dietaries, setDietary] = useState([]);
 

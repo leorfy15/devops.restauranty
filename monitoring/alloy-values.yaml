@@ -1,0 +1,52 @@
+controller:
+  type: deployment
+  replicas: 1
+
+alloy:
+  configMap:
+    create: true
+    content: |
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "restauranty" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex         = "restauranty"
+          action        = "keep"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+      }
+
+      loki.source.kubernetes "restauranty" {
+        targets    = discovery.relabel.restauranty.output
+        forward_to = [loki.write.local.receiver]
+      }
+
+      loki.write "local" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+        }
+      }

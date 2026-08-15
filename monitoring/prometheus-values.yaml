@@ -1,0 +1,53 @@
+grafana:
+  enabled: true
+
+  adminPassword: "restauranty-admin-change-me"
+
+  service:
+    type: ClusterIP
+
+  persistence:
+    enabled: true
+    size: 5Gi
+
+prometheus:
+  prometheusSpec:
+
+    retention: 7d
+
+    retentionSize: "8GB"
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+kube-state-metrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true

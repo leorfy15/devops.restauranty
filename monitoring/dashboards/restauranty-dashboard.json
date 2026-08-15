@@ -1,0 +1,19 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "MongoDB Status"
+    }
+  ],
+  "schemaVersion": 41,
+  "tags": [
+    "restauranty",
+    "kubernetes",
+    "observability"
+  ],
+  "title": "Restauranty - Application & Kubernetes Overview"
+}

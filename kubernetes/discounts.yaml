@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: restauranty-discounts
   namespace: restauranty
+
 spec:
   replicas: 2
 
@@ -18,7 +19,6 @@ spec:
     spec:
       containers:
         - name: discounts
-
           image: acrrestaurantytatiana.azurecr.io/restauranty-discounts:v1
 
           ports:
@@ -42,12 +42,16 @@ kind: Service
 metadata:
   name: discounts
   namespace: restauranty
+  labels:
+    app: restauranty-discounts
+
 spec:
   selector:
     app: restauranty-discounts
 
   ports:
-    - port: 3002
+    - name: metrics
+      port: 3002
       targetPort: 3002
 
   type: ClusterIP

@@ -1,0 +1,13 @@
+grafana:
+  envFromSecret: grafana-smtp-secret
+
+  grafana.ini:
+    smtp:
+      enabled: true
+      host: smtp.gmail.com:587
+      user: $__env{user}
+      password: $__env{password}
+      skip_verify: false
+      from_address: tatianatudor15@gmail.com
+      from_name: Restauranty Grafana
+      startTLS_policy: MandatoryStartTLS

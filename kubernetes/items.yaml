@@ -60,13 +60,14 @@ kind: Service
 metadata:
   name: items
   namespace: restauranty
+  labels:
+    app: restauranty-items
 
 spec:
   selector:
     app: restauranty-items
 
-  ports:
-    - port: 3003
-      targetPort: 3003
-
-  type: ClusterIP
+  ports:  
+  - name: metrics
+    port: 3003
+    targetPort: 3003

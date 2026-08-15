@@ -18,6 +18,7 @@ backend/*/.env
 
 # Kubernetes secrets
 kubernetes/cloudinary-secret.yaml
+kubernetes/auth-secret.yaml
 
 # =========================
 # Expo

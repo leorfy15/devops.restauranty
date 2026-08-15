@@ -27,6 +27,11 @@ spec:
           env:
             - name: MONGODB_URI
               value: "mongodb://mongodb:27017/Restauranty"
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secret
+                  key: SECRET
 
           resources:
             requests:
@@ -42,12 +47,14 @@ kind: Service
 metadata:
   name: auth
   namespace: restauranty
+  labels:
+    app: restauranty-auth
+
 spec:
   selector:
     app: restauranty-auth
 
   ports:
-    - port: 3001
+    - name: metrics
+      port: 3001
       targetPort: 3001
-
-  type: ClusterIP

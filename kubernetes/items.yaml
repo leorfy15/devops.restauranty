@@ -19,7 +19,9 @@ spec:
     spec:
       containers:
         - name: items
-          image: acrrestaurantytatiana.azurecr.io/restauranty-items:v1
+
+          # CI/CD replaces this with the current Git SHA before deployment
+          image: acrrestaurantytatiana.azurecr.io/restauranty-items:latest
 
           ports:
             - containerPort: 3003
@@ -40,20 +42,25 @@ spec:
             - name: CLOUD_NAME
               valueFrom:
                 secretKeyRef:
-                  name: cloudinary-secret
+                  name: cloudinary-secret-kv
                   key: CLOUD_NAME
 
             - name: CLOUD_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: cloudinary-secret
+                  name: cloudinary-secret-kv
                   key: CLOUD_API_KEY
 
             - name: CLOUD_API_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: cloudinary-secret
+                  name: cloudinary-secret-kv
                   key: CLOUD_API_SECRET
+
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
 
           resources:
             requests:
@@ -62,6 +69,14 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "restauranty-keyvault"
 
 ---
 apiVersion: v1

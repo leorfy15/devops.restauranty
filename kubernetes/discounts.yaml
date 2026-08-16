@@ -24,6 +24,15 @@ spec:
           ports:
             - containerPort: 3002
 
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
           env:
             - name: MONGODB_URI
               value: "mongodb://mongodb:27017/Restauranty"

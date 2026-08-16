@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: restauranty-auth
   namespace: restauranty
+
 spec:
   replicas: 2
 
@@ -24,9 +25,19 @@ spec:
           ports:
             - containerPort: 3001
 
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
           env:
             - name: MONGODB_URI
               value: "mongodb://mongodb:27017/Restauranty"
+
             - name: SECRET
               valueFrom:
                 secretKeyRef:
@@ -58,3 +69,5 @@ spec:
     - name: metrics
       port: 3001
       targetPort: 3001
+
+  type: ClusterIP

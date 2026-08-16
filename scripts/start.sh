@@ -35,14 +35,26 @@ echo "Nodes are ready."
 
 kubectl get nodes
 
-echo "Waiting for MongoDB..."
+echo "Waiting for MongoDB deployment..."
 
 kubectl rollout status \
   deployment/mongodb \
   -n "$NAMESPACE" \
   --timeout=300s
 
-echo "MongoDB is ready."
+echo "Waiting for MongoDB to accept connections..."
+
+until kubectl exec deployment/mongodb \
+  -n "$NAMESPACE" \
+  -- mongosh --quiet \
+  --eval 'db.adminCommand("ping").ok' \
+  | grep -q "1"
+do
+  echo "MongoDB is not ready yet..."
+  sleep 5
+done
+
+echo "MongoDB is accepting connections."
 
 echo "Restarting backend services so they reconnect to MongoDB..."
 
@@ -61,6 +73,29 @@ kubectl rollout status deployment/restauranty-discounts \
   --timeout=300s
 
 kubectl rollout status deployment/restauranty-items \
+  -n "$NAMESPACE" \
+  --timeout=300s
+
+echo "Waiting for backend pods to become Ready..."
+
+kubectl wait \
+  --for=condition=Ready \
+  pod \
+  -l app=restauranty-auth \
+  -n "$NAMESPACE" \
+  --timeout=300s
+
+kubectl wait \
+  --for=condition=Ready \
+  pod \
+  -l app=restauranty-discounts \
+  -n "$NAMESPACE" \
+  --timeout=300s
+
+kubectl wait \
+  --for=condition=Ready \
+  pod \
+  -l app=restauranty-items \
   -n "$NAMESPACE" \
   --timeout=300s
 

@@ -20,7 +20,8 @@ spec:
       containers:
         - name: auth
 
-          image: acrrestaurantytatiana.azurecr.io/restauranty-auth:v1
+          # CI/CD replaces this with the current Git SHA before deployment.
+          image: acrrestaurantytatiana.azurecr.io/restauranty-auth:latest
 
           ports:
             - containerPort: 3001
@@ -41,8 +42,13 @@ spec:
             - name: SECRET
               valueFrom:
                 secretKeyRef:
-                  name: auth-secret
+                  name: auth-secret-kv
                   key: SECRET
+
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
 
           resources:
             requests:
@@ -51,6 +57,14 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "restauranty-keyvault"
 
 ---
 apiVersion: v1

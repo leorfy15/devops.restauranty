@@ -24,6 +24,15 @@ spec:
           ports:
             - containerPort: 3003
 
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
           env:
             - name: MONGODB_URI
               value: "mongodb://mongodb:27017/Restauranty"
@@ -67,7 +76,9 @@ spec:
   selector:
     app: restauranty-items
 
-  ports:  
-  - name: metrics
-    port: 3003
-    targetPort: 3003
+  ports:
+    - name: metrics
+      port: 3003
+      targetPort: 3003
+
+  type: ClusterIP

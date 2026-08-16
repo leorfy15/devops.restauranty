@@ -4,13 +4,21 @@ metadata:
   name: restauranty-ingress
   namespace: restauranty
 
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
 spec:
   ingressClassName: webapprouting.kubernetes.azure.com
 
-  rules:
-    - http:
-        paths:
+  tls:
+    - hosts:
+        - restauranty-tatiana.duckdns.org
+      secretName: restauranty-tls
 
+  rules:
+    - host: restauranty-tatiana.duckdns.org
+      http:
+        paths:
           - path: /api/auth
             pathType: Prefix
             backend:

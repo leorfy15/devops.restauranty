@@ -1,0 +1,4 @@
+NAME                        REFERENCE                          TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+restauranty-auth-hpa        Deployment/restauranty-auth        cpu: 5%/60%   2         6         2          84m
+restauranty-discounts-hpa   Deployment/restauranty-discounts   cpu: 5%/60%   2         6         2          84m
+restauranty-items-hpa       Deployment/restauranty-items       cpu: 5%/60%   2         6         2          84m

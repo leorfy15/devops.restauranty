@@ -11,7 +11,7 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.4.0"
+    version="1.5.0"
 )
 
 NAMESPACE = "restauranty"
@@ -36,7 +36,7 @@ autoscaling_v2 = client.AutoscalingV2Api()
 
 
 # =========================================================
-# Ollama configuration
+# External service configuration
 # =========================================================
 
 OLLAMA_URL = os.getenv(
@@ -49,20 +49,10 @@ OLLAMA_MODEL = os.getenv(
     "llama3.2:1b"
 )
 
-
-# =========================================================
-# Loki configuration
-# =========================================================
-
 LOKI_URL = os.getenv(
     "LOKI_URL",
     "http://loki-gateway.monitoring.svc.cluster.local"
 )
-
-
-# =========================================================
-# Prometheus configuration
-# =========================================================
 
 PROMETHEUS_URL = os.getenv(
     "PROMETHEUS_URL",
@@ -79,7 +69,7 @@ class ChatRequest(BaseModel):
 
 
 # =========================================================
-# Health endpoint
+# Health
 # =========================================================
 
 @app.get("/health")
@@ -113,7 +103,10 @@ def get_current_deployments():
             "desired": desired,
             "ready": ready,
             "available": available,
-            "healthy": ready >= desired and available >= desired
+            "healthy": (
+                ready >= desired
+                and available >= desired
+            )
         })
 
     return result
@@ -188,32 +181,35 @@ def get_cluster_summary():
         if not deployment["healthy"]
     ]
 
-    failed_pods = [
+    historical_failed_pods = [
         pod
         for pod in pods
         if pod["phase"] == "Failed"
     ]
 
-    currently_unhealthy_pods = [
+    current_pod_problems = [
         pod
         for pod in pods
-        if pod["phase"] not in [
-            "Running",
-            "Succeeded",
-            "Failed"
-        ]
-        or (
-            pod["phase"] == "Running"
-            and not pod["ready"]
+        if (
+            pod["phase"] not in [
+                "Running",
+                "Succeeded",
+                "Failed"
+            ]
+            or (
+                pod["phase"] == "Running"
+                and not pod["ready"]
+            )
         )
     ]
 
     return {
         "namespace": NAMESPACE,
 
-        "healthy":
+        "healthy": (
             len(unhealthy_deployments) == 0
-            and len(currently_unhealthy_pods) == 0,
+            and len(current_pod_problems) == 0
+        ),
 
         "deployments": deployments,
 
@@ -221,15 +217,15 @@ def get_cluster_summary():
             unhealthy_deployments,
 
         "currentPodProblems":
-            currently_unhealthy_pods,
+            current_pod_problems,
 
         "historicalFailedPods":
-            failed_pods
+            historical_failed_pods
     }
 
 
 # =========================================================
-# Loki helper
+# Loki
 # =========================================================
 
 def query_loki(query, minutes=30, limit=100):
@@ -263,13 +259,13 @@ def query_loki(query, minutes=30, limit=100):
 
         logs = []
 
-        result = (
+        streams = (
             data
             .get("data", {})
             .get("result", [])
         )
 
-        for stream in result:
+        for stream in streams:
 
             labels = stream.get(
                 "stream",
@@ -302,7 +298,7 @@ def query_loki(query, minutes=30, limit=100):
 
 
 # =========================================================
-# Prometheus helper
+# Prometheus
 # =========================================================
 
 def query_prometheus(query):
@@ -339,6 +335,10 @@ def query_prometheus(query):
         return []
 
 
+# =========================================================
+# CPU metrics
+# =========================================================
+
 def get_pod_cpu_usage():
 
     query = """
@@ -353,8 +353,61 @@ sum by (pod) (
 )
 """
 
-    return query_prometheus(query)
+    raw_results = query_prometheus(query)
 
+    result = []
+
+    for item in raw_results:
+
+        pod = (
+            item
+            .get("metric", {})
+            .get("pod")
+        )
+
+        value = item.get("value", [])
+
+        if len(value) < 2:
+            continue
+
+        try:
+            cpu_cores = float(value[1])
+        except (ValueError, TypeError):
+            continue
+
+        cpu_millicores = cpu_cores * 1000
+
+        result.append({
+            "pod": pod,
+
+            # Actual CPU cores consumed.
+            "cores": round(
+                cpu_cores,
+                6
+            ),
+
+            # Human-friendly Kubernetes CPU unit.
+            "millicores": round(
+                cpu_millicores,
+                2
+            ),
+
+            "display": (
+                f"{cpu_millicores:.2f}m CPU"
+            )
+        })
+
+    result.sort(
+        key=lambda x: x["millicores"],
+        reverse=True
+    )
+
+    return result
+
+
+# =========================================================
+# Memory metrics
+# =========================================================
 
 def get_pod_memory_usage():
 
@@ -368,8 +421,62 @@ sum by (pod) (
 )
 """
 
-    return query_prometheus(query)
+    raw_results = query_prometheus(query)
 
+    result = []
+
+    for item in raw_results:
+
+        pod = (
+            item
+            .get("metric", {})
+            .get("pod")
+        )
+
+        value = item.get("value", [])
+
+        if len(value) < 2:
+            continue
+
+        try:
+            memory_bytes = float(value[1])
+        except (ValueError, TypeError):
+            continue
+
+        memory_mib = (
+            memory_bytes
+            / 1024
+            / 1024
+        )
+
+        result.append({
+            "pod": pod,
+
+            "bytes": int(
+                memory_bytes
+            ),
+
+            "MiB": round(
+                memory_mib,
+                2
+            ),
+
+            "display": (
+                f"{memory_mib:.2f} MiB"
+            )
+        })
+
+    result.sort(
+        key=lambda x: x["MiB"],
+        reverse=True
+    )
+
+    return result
+
+
+# =========================================================
+# Restart metrics
+# =========================================================
 
 def get_pod_restart_metrics():
 
@@ -381,7 +488,85 @@ sum by (pod) (
 )
 """
 
-    return query_prometheus(query)
+    raw_results = query_prometheus(query)
+
+    result = []
+
+    for item in raw_results:
+
+        pod = (
+            item
+            .get("metric", {})
+            .get("pod")
+        )
+
+        value = item.get("value", [])
+
+        if len(value) < 2:
+            continue
+
+        try:
+            restarts = int(
+                float(value[1])
+            )
+        except (ValueError, TypeError):
+            continue
+
+        result.append({
+            "pod": pod,
+            "restarts": restarts
+        })
+
+    result.sort(
+        key=lambda x: x["restarts"],
+        reverse=True
+    )
+
+    return result
+
+
+# =========================================================
+# Combined metrics summary
+# =========================================================
+
+def get_metrics_summary():
+
+    cpu = get_pod_cpu_usage()
+    memory = get_pod_memory_usage()
+    restarts = get_pod_restart_metrics()
+
+    highest_cpu = (
+        cpu[0]
+        if cpu
+        else None
+    )
+
+    highest_memory = (
+        memory[0]
+        if memory
+        else None
+    )
+
+    restarted_pods = [
+        item
+        for item in restarts
+        if item["restarts"] > 0
+    ]
+
+    return {
+        "cpu": cpu,
+        "memory": memory,
+        "restarts": restarts,
+
+        "highestCpuPod":
+            highest_cpu,
+
+        "highestMemoryPod":
+            highest_memory,
+
+        "podsWithRestarts":
+            restarted_pods
+    }
 
 
 # =========================================================
@@ -413,7 +598,7 @@ def get_hpa():
 
 
 # =========================================================
-# Ollama status endpoint
+# Ollama endpoint
 # =========================================================
 
 @app.get("/api/assistant/ollama")
@@ -447,7 +632,7 @@ def ollama_status():
 
 
 # =========================================================
-# Loki API endpoints
+# Loki endpoints
 # =========================================================
 
 @app.get("/api/assistant/logs")
@@ -505,21 +690,17 @@ def security_events():
 
 
 # =========================================================
-# Prometheus API endpoint
+# Prometheus endpoint
 # =========================================================
 
 @app.get("/api/assistant/metrics")
 def metrics():
 
-    return {
-        "cpu": get_pod_cpu_usage(),
-        "memory": get_pod_memory_usage(),
-        "restarts": get_pod_restart_metrics()
-    }
+    return get_metrics_summary()
 
 
 # =========================================================
-# Chat endpoint
+# Chat
 # =========================================================
 
 @app.post("/api/assistant/chat")
@@ -536,21 +717,26 @@ def chat(request: ChatRequest):
 
 
     # -----------------------------------------------------
-    # Always collect Kubernetes state
+    # Always collect Kubernetes information
     # -----------------------------------------------------
 
-    cluster_summary = get_cluster_summary()
+    cluster_summary = (
+        get_cluster_summary()
+    )
 
-    hpa_status = get_hpa_status()
+    hpa_status = (
+        get_hpa_status()
+    )
 
 
     # -----------------------------------------------------
-    # Question routing
+    # Determine relevant tools
     # -----------------------------------------------------
 
     question_lower = question.lower()
 
     log_context = []
+
     metric_context = {}
 
 
@@ -637,11 +823,9 @@ def chat(request: ChatRequest):
         for word in metric_keywords
     ):
 
-        metric_context = {
-            "cpu": get_pod_cpu_usage(),
-            "memory": get_pod_memory_usage(),
-            "restarts": get_pod_restart_metrics()
-        }
+        metric_context = (
+            get_metrics_summary()
+        )
 
 
     # -----------------------------------------------------
@@ -651,39 +835,87 @@ def chat(request: ChatRequest):
     system_prompt = """
 You are the Restauranty DevOps AI Assistant.
 
-You answer questions about the live Restauranty
-Azure Kubernetes Service environment.
+You answer questions using live data from the
+Restauranty Azure Kubernetes Service environment.
 
-You are provided with live Kubernetes information,
-live Loki logs when relevant, and live Prometheus
-metrics when relevant.
+You may receive:
 
-Rules:
+- Kubernetes pod and deployment state
+- HPA state
+- Loki logs
+- Prometheus metrics
 
-- Only use the infrastructure information supplied to you.
-- Never invent pod, deployment, HPA, metric or log information.
-- Clearly distinguish current problems from historical failures.
-- Historical failed pods do not automatically mean the current
-  application is unhealthy if active deployments have their
-  expected replicas available.
-- When log information is supplied, use it to explain recent
-  failures or security events.
-- Do not claim an error exists unless it appears in the supplied
-  Kubernetes state or logs.
-- If no matching recent logs were found, say so clearly.
-- When Prometheus metrics are supplied, use them to explain
-  current CPU, memory, restart or performance information.
-- Do not invent resource usage values.
-- Values from Prometheus are live measurements.
-- Keep explanations concise and useful for a DevOps engineer.
-- If everything is healthy, say so directly.
-- You currently have read-only infrastructure access.
-- You cannot modify or delete Kubernetes resources.
+Important rules:
+
+1. Only use the supplied live data.
+
+2. Never invent pod names, resource usage,
+   logs, errors, replicas or events.
+
+3. CPU and memory values have ALREADY been
+   calculated and converted by the backend.
+
+4. Do NOT perform your own unit conversions.
+
+5. If a metric contains a field called "display",
+   use that exact human-readable value.
+
+6. CPU is already provided in millicores.
+
+7. Memory is already provided in MiB.
+
+8. When asked which pod uses the most CPU,
+   use "highestCpuPod".
+
+9. When asked which pod uses the most memory,
+   use "highestMemoryPod".
+
+10. Historical failed pods do not automatically
+    mean the current application is unhealthy.
+
+11. Clearly distinguish current problems from
+    historical events.
+
+12. Do not claim an error exists unless it appears
+    in the supplied Kubernetes state or Loki logs.
+
+13. If no relevant logs were found, say that no
+    matching recent events were found.
+
+14. Keep answers SHORT.
+
+For simple operational questions:
+- give the answer directly,
+- include the relevant value,
+- optionally add one short explanation.
+
+Do not repeat all supplied metrics unless the user
+explicitly asks for a full list.
+
+Avoid phrases such as:
+"Based on the provided information"
+or
+"According to the supplied Kubernetes environment".
+
+Example:
+
+Question:
+Which pod uses the most memory?
+
+Good answer:
+restauranty-items-abc123 is currently using the most
+memory at 54.2 MiB. The pod is healthy.
+
+Bad answer:
+A long explanation listing every pod and recalculating
+bytes into gigabytes.
+
+You currently have read-only infrastructure access.
 """
 
 
     # -----------------------------------------------------
-    # Prompt sent to Ollama
+    # Prompt
     # -----------------------------------------------------
 
     prompt = f"""
@@ -705,19 +937,19 @@ LIVE HPA STATUS:
 {hpa_status}
 
 
-RELEVANT LIVE LOKI LOGS:
+RELEVANT LOKI LOGS:
 
 {log_context}
 
 
-LIVE PROMETHEUS METRICS:
+NORMALIZED PROMETHEUS METRICS:
 
 {metric_context}
 """
 
 
     # -----------------------------------------------------
-    # Call Ollama
+    # Ollama
     # -----------------------------------------------------
 
     try:
@@ -728,7 +960,13 @@ LIVE PROMETHEUS METRICS:
             json={
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
-                "stream": False
+                "stream": False,
+
+                # Lower temperature helps make operational
+                # answers more consistent and less creative.
+                "options": {
+                    "temperature": 0.1
+                }
             },
 
             timeout=180
@@ -748,7 +986,7 @@ LIVE PROMETHEUS METRICS:
             "model": OLLAMA_MODEL,
             "logEventsUsed": len(log_context),
             "metricsUsed": bool(metric_context),
-            "answer": answer
+            "answer": answer.strip()
         }
 
 
@@ -767,7 +1005,9 @@ LIVE PROMETHEUS METRICS:
 
         raise HTTPException(
             status_code=504,
-            detail="Ollama took too long to answer"
+            detail=(
+                "Ollama took too long to answer"
+            )
         )
 
 

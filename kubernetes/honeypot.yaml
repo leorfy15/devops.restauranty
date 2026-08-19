@@ -57,4 +57,5 @@ spec:
       port: 2222
       targetPort: 2222
 
+
   type: LoadBalancer

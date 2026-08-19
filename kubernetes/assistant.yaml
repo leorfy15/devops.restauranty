@@ -36,6 +36,9 @@ spec:
             - name: LOKI_URL
               value: "http://loki-gateway.monitoring.svc.cluster.local"
 
+            - name: PROMETHEUS_URL
+              value: "http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
+
           readinessProbe:
             httpGet:
               path: /health

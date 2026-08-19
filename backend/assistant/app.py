@@ -11,7 +11,7 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.3.0"
+    version="1.4.0"
 )
 
 NAMESPACE = "restauranty"
@@ -57,6 +57,16 @@ OLLAMA_MODEL = os.getenv(
 LOKI_URL = os.getenv(
     "LOKI_URL",
     "http://loki-gateway.monitoring.svc.cluster.local"
+)
+
+
+# =========================================================
+# Prometheus configuration
+# =========================================================
+
+PROMETHEUS_URL = os.getenv(
+    "PROMETHEUS_URL",
+    "http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
 )
 
 
@@ -292,6 +302,89 @@ def query_loki(query, minutes=30, limit=100):
 
 
 # =========================================================
+# Prometheus helper
+# =========================================================
+
+def query_prometheus(query):
+
+    try:
+
+        response = requests.get(
+            f"{PROMETHEUS_URL}/api/v1/query",
+            params={
+                "query": query
+            },
+            timeout=15
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data.get("status") != "success":
+            return []
+
+        return (
+            data
+            .get("data", {})
+            .get("result", [])
+        )
+
+    except requests.RequestException as exc:
+
+        print(
+            f"Prometheus query failed: {str(exc)}"
+        )
+
+        return []
+
+
+def get_pod_cpu_usage():
+
+    query = """
+sum by (pod) (
+  rate(
+    container_cpu_usage_seconds_total{
+      namespace="restauranty",
+      container!="",
+      container!="POD"
+    }[5m]
+  )
+)
+"""
+
+    return query_prometheus(query)
+
+
+def get_pod_memory_usage():
+
+    query = """
+sum by (pod) (
+  container_memory_working_set_bytes{
+    namespace="restauranty",
+    container!="",
+    container!="POD"
+  }
+)
+"""
+
+    return query_prometheus(query)
+
+
+def get_pod_restart_metrics():
+
+    query = """
+sum by (pod) (
+  kube_pod_container_status_restarts_total{
+    namespace="restauranty"
+  }
+)
+"""
+
+    return query_prometheus(query)
+
+
+# =========================================================
 # Kubernetes API endpoints
 # =========================================================
 
@@ -412,6 +505,20 @@ def security_events():
 
 
 # =========================================================
+# Prometheus API endpoint
+# =========================================================
+
+@app.get("/api/assistant/metrics")
+def metrics():
+
+    return {
+        "cpu": get_pod_cpu_usage(),
+        "memory": get_pod_memory_usage(),
+        "restarts": get_pod_restart_metrics()
+    }
+
+
+# =========================================================
 # Chat endpoint
 # =========================================================
 
@@ -429,7 +536,7 @@ def chat(request: ChatRequest):
 
 
     # -----------------------------------------------------
-    # Always collect current Kubernetes state
+    # Always collect Kubernetes state
     # -----------------------------------------------------
 
     cluster_summary = get_cluster_summary()
@@ -438,12 +545,14 @@ def chat(request: ChatRequest):
 
 
     # -----------------------------------------------------
-    # Determine whether relevant Loki context is needed
+    # Question routing
     # -----------------------------------------------------
 
     question_lower = question.lower()
 
     log_context = []
+    metric_context = {}
+
 
     log_keywords = [
         "log",
@@ -456,6 +565,7 @@ def chat(request: ChatRequest):
         "500"
     ]
 
+
     security_keywords = [
         "honeypot",
         "attack",
@@ -467,6 +577,26 @@ def chat(request: ChatRequest):
         "cowrie"
     ]
 
+
+    metric_keywords = [
+        "cpu",
+        "memory",
+        "ram",
+        "usage",
+        "resource",
+        "resources",
+        "metric",
+        "metrics",
+        "performance",
+        "load",
+        "restart",
+        "restarts"
+    ]
+
+
+    # -----------------------------------------------------
+    # Loki context
+    # -----------------------------------------------------
 
     if any(
         word in question_lower
@@ -499,6 +629,22 @@ def chat(request: ChatRequest):
 
 
     # -----------------------------------------------------
+    # Prometheus context
+    # -----------------------------------------------------
+
+    if any(
+        word in question_lower
+        for word in metric_keywords
+    ):
+
+        metric_context = {
+            "cpu": get_pod_cpu_usage(),
+            "memory": get_pod_memory_usage(),
+            "restarts": get_pod_restart_metrics()
+        }
+
+
+    # -----------------------------------------------------
     # System prompt
     # -----------------------------------------------------
 
@@ -508,8 +654,9 @@ You are the Restauranty DevOps AI Assistant.
 You answer questions about the live Restauranty
 Azure Kubernetes Service environment.
 
-You are provided with live Kubernetes information
-and, when relevant, live Loki log information.
+You are provided with live Kubernetes information,
+live Loki logs when relevant, and live Prometheus
+metrics when relevant.
 
 Rules:
 
@@ -524,6 +671,10 @@ Rules:
 - Do not claim an error exists unless it appears in the supplied
   Kubernetes state or logs.
 - If no matching recent logs were found, say so clearly.
+- When Prometheus metrics are supplied, use them to explain
+  current CPU, memory, restart or performance information.
+- Do not invent resource usage values.
+- Values from Prometheus are live measurements.
 - Keep explanations concise and useful for a DevOps engineer.
 - If everything is healthy, say so directly.
 - You currently have read-only infrastructure access.
@@ -557,6 +708,11 @@ LIVE HPA STATUS:
 RELEVANT LIVE LOKI LOGS:
 
 {log_context}
+
+
+LIVE PROMETHEUS METRICS:
+
+{metric_context}
 """
 
 
@@ -591,6 +747,7 @@ RELEVANT LIVE LOKI LOGS:
             "question": question,
             "model": OLLAMA_MODEL,
             "logEventsUsed": len(log_context),
+            "metricsUsed": bool(metric_context),
             "answer": answer
         }
 

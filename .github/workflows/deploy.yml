@@ -196,35 +196,6 @@ jobs:
             -n $NAMESPACE \
             --timeout=300s
 
-
-      # ============================================================
-      # Verify readiness
-      # ============================================================
-
-      - name: Wait for backend pods to become Ready
-        run: |
-          kubectl wait \
-            --for=condition=Ready \
-            pod \
-            -l app=restauranty-auth \
-            -n $NAMESPACE \
-            --timeout=300s
-
-          kubectl wait \
-            --for=condition=Ready \
-            pod \
-            -l app=restauranty-discounts \
-            -n $NAMESPACE \
-            --timeout=300s
-
-          kubectl wait \
-            --for=condition=Ready \
-            pod \
-            -l app=restauranty-items \
-            -n $NAMESPACE \
-            --timeout=300s
-
-
       # ============================================================
       # Verify deployed images
       # ============================================================

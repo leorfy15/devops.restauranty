@@ -11,7 +11,7 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.5.0"
+    version="1.6.0"
 )
 
 NAMESPACE = "restauranty"
@@ -212,16 +212,21 @@ def get_cluster_summary():
         ),
 
         "deployments": deployments,
-
-        "unhealthyDeployments":
-            unhealthy_deployments,
-
-        "currentPodProblems":
-            current_pod_problems,
-
-        "historicalFailedPods":
-            historical_failed_pods
+        "unhealthyDeployments": unhealthy_deployments,
+        "currentPodProblems": current_pod_problems,
+        "historicalFailedPods": historical_failed_pods
     }
+
+
+def find_pod_info(pod_name):
+
+    pods = get_current_pods()
+
+    for pod in pods:
+        if pod["name"] == pod_name:
+            return pod
+
+    return None
 
 
 # =========================================================
@@ -372,6 +377,7 @@ sum by (pod) (
 
         try:
             cpu_cores = float(value[1])
+
         except (ValueError, TypeError):
             continue
 
@@ -379,19 +385,14 @@ sum by (pod) (
 
         result.append({
             "pod": pod,
-
-            # Actual CPU cores consumed.
             "cores": round(
                 cpu_cores,
                 6
             ),
-
-            # Human-friendly Kubernetes CPU unit.
             "millicores": round(
                 cpu_millicores,
                 2
             ),
-
             "display": (
                 f"{cpu_millicores:.2f}m CPU"
             )
@@ -440,6 +441,7 @@ sum by (pod) (
 
         try:
             memory_bytes = float(value[1])
+
         except (ValueError, TypeError):
             continue
 
@@ -451,16 +453,13 @@ sum by (pod) (
 
         result.append({
             "pod": pod,
-
             "bytes": int(
                 memory_bytes
             ),
-
             "MiB": round(
                 memory_mib,
                 2
             ),
-
             "display": (
                 f"{memory_mib:.2f} MiB"
             )
@@ -509,6 +508,7 @@ sum by (pod) (
             restarts = int(
                 float(value[1])
             )
+
         except (ValueError, TypeError):
             continue
 
@@ -526,7 +526,7 @@ sum by (pod) (
 
 
 # =========================================================
-# Combined metrics summary
+# Metrics summary
 # =========================================================
 
 def get_metrics_summary():
@@ -716,9 +716,172 @@ def chat(request: ChatRequest):
         )
 
 
-    # -----------------------------------------------------
-    # Always collect Kubernetes information
-    # -----------------------------------------------------
+    question_lower = question.lower()
+
+
+    # =====================================================
+    # Deterministic metric answers
+    # =====================================================
+
+    if (
+        "most memory" in question_lower
+        or "highest memory" in question_lower
+        or "using the most memory" in question_lower
+    ):
+
+        metrics = get_metrics_summary()
+
+        highest = metrics.get(
+            "highestMemoryPod"
+        )
+
+        if not highest:
+
+            return {
+                "question": question,
+                "model": "deterministic",
+                "logEventsUsed": 0,
+                "metricsUsed": True,
+                "answer": (
+                    "No memory metrics are "
+                    "currently available."
+                )
+            }
+
+        pod_info = find_pod_info(
+            highest["pod"]
+        )
+
+        healthy = (
+            pod_info is not None
+            and pod_info["phase"] == "Running"
+            and pod_info["ready"]
+        )
+
+        health_text = (
+            "healthy"
+            if healthy
+            else "not currently healthy"
+        )
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "logEventsUsed": 0,
+            "metricsUsed": True,
+            "answer": (
+                f'{highest["pod"]} is currently '
+                f'using the most memory at '
+                f'{highest["display"]}. '
+                f'The pod is {health_text}.'
+            )
+        }
+
+
+    if (
+        "most cpu" in question_lower
+        or "highest cpu" in question_lower
+        or "using the most cpu" in question_lower
+    ):
+
+        metrics = get_metrics_summary()
+
+        highest = metrics.get(
+            "highestCpuPod"
+        )
+
+        if not highest:
+
+            return {
+                "question": question,
+                "model": "deterministic",
+                "logEventsUsed": 0,
+                "metricsUsed": True,
+                "answer": (
+                    "No CPU metrics are "
+                    "currently available."
+                )
+            }
+
+        pod_info = find_pod_info(
+            highest["pod"]
+        )
+
+        healthy = (
+            pod_info is not None
+            and pod_info["phase"] == "Running"
+            and pod_info["ready"]
+        )
+
+        health_text = (
+            "healthy"
+            if healthy
+            else "not currently healthy"
+        )
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "logEventsUsed": 0,
+            "metricsUsed": True,
+            "answer": (
+                f'{highest["pod"]} is currently '
+                f'using the most CPU at '
+                f'{highest["display"]}. '
+                f'The pod is {health_text}.'
+            )
+        }
+
+
+    if (
+        "restart" in question_lower
+        or "restarts" in question_lower
+    ):
+
+        metrics = get_metrics_summary()
+
+        restarted = metrics.get(
+            "podsWithRestarts",
+            []
+        )
+
+        if not restarted:
+
+            return {
+                "question": question,
+                "model": "deterministic",
+                "logEventsUsed": 0,
+                "metricsUsed": True,
+                "answer": (
+                    "No Restauranty pods currently "
+                    "report container restarts."
+                )
+            }
+
+        lines = []
+
+        for item in restarted:
+
+            lines.append(
+                f'{item["pod"]}: '
+                f'{item["restarts"]} restart(s)'
+            )
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "logEventsUsed": 0,
+            "metricsUsed": True,
+            "answer": (
+                "Pods with restarts: "
+                + "; ".join(lines)
+            )
+        }
+
+
+    # =====================================================
+    # Live Kubernetes context
+    # =====================================================
 
     cluster_summary = (
         get_cluster_summary()
@@ -729,11 +892,9 @@ def chat(request: ChatRequest):
     )
 
 
-    # -----------------------------------------------------
-    # Determine relevant tools
-    # -----------------------------------------------------
-
-    question_lower = question.lower()
+    # =====================================================
+    # Tool routing
+    # =====================================================
 
     log_context = []
 
@@ -774,15 +935,13 @@ def chat(request: ChatRequest):
         "metric",
         "metrics",
         "performance",
-        "load",
-        "restart",
-        "restarts"
+        "load"
     ]
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # Loki context
-    # -----------------------------------------------------
+    # =====================================================
 
     if any(
         word in question_lower
@@ -814,9 +973,9 @@ def chat(request: ChatRequest):
         )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # Prometheus context
-    # -----------------------------------------------------
+    # =====================================================
 
     if any(
         word in question_lower
@@ -828,9 +987,9 @@ def chat(request: ChatRequest):
         )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # System prompt
-    # -----------------------------------------------------
+    # =====================================================
 
     system_prompt = """
 You are the Restauranty DevOps AI Assistant.
@@ -845,78 +1004,63 @@ You may receive:
 - Loki logs
 - Prometheus metrics
 
-Important rules:
+Rules:
 
-1. Only use the supplied live data.
+1. Only use supplied live data.
 
 2. Never invent pod names, resource usage,
    logs, errors, replicas or events.
 
-3. CPU and memory values have ALREADY been
-   calculated and converted by the backend.
+3. CPU and memory values have already been
+   calculated and converted by Python.
 
-4. Do NOT perform your own unit conversions.
+4. Never perform your own unit conversions.
 
-5. If a metric contains a field called "display",
-   use that exact human-readable value.
+5. If a metric contains a "display" field,
+   use that exact value.
 
-6. CPU is already provided in millicores.
+6. CPU values are provided in millicores.
 
-7. Memory is already provided in MiB.
+7. Memory values are provided in MiB.
 
-8. When asked which pod uses the most CPU,
-   use "highestCpuPod".
+8. Clearly distinguish current problems
+   from historical events.
 
-9. When asked which pod uses the most memory,
-   use "highestMemoryPod".
+9. Historical failed pods do not automatically
+   mean Restauranty is currently unhealthy.
 
-10. Historical failed pods do not automatically
-    mean the current application is unhealthy.
+10. Never claim an error exists unless it appears
+    in the Kubernetes state or Loki logs.
 
-11. Clearly distinguish current problems from
-    historical events.
-
-12. Do not claim an error exists unless it appears
-    in the supplied Kubernetes state or Loki logs.
-
-13. If no relevant logs were found, say that no
+11. If no relevant logs exist, simply say no
     matching recent events were found.
 
-14. Keep answers SHORT.
+12. When discussing security events, mention
+    relevant source IPs, login attempts and
+    executed commands when present.
 
-For simple operational questions:
-- give the answer directly,
-- include the relevant value,
-- optionally add one short explanation.
+13. Do not omit relevant events simply because
+    another event appears more important.
 
-Do not repeat all supplied metrics unless the user
-explicitly asks for a full list.
+14. Keep answers concise.
 
-Avoid phrases such as:
-"Based on the provided information"
-or
-"According to the supplied Kubernetes environment".
+15. Do not repeat the user's question.
 
-Example:
+16. Do not give unrelated CPU information when
+    asked about memory, or memory information
+    when asked about CPU.
 
-Question:
-Which pod uses the most memory?
-
-Good answer:
-restauranty-items-abc123 is currently using the most
-memory at 54.2 MiB. The pod is healthy.
-
-Bad answer:
-A long explanation listing every pod and recalculating
-bytes into gigabytes.
+17. Do not say "No matching recent events were found"
+    unless the user's question is actually about
+    logs, errors, or security events.
 
 You currently have read-only infrastructure access.
 """
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # Prompt
-    # -----------------------------------------------------
+    # =====================================================
 
     prompt = f"""
 {system_prompt}
@@ -948,9 +1092,9 @@ NORMALIZED PROMETHEUS METRICS:
 """
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # Ollama
-    # -----------------------------------------------------
+    # =====================================================
 
     try:
 
@@ -961,9 +1105,6 @@ NORMALIZED PROMETHEUS METRICS:
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False,
-
-                # Lower temperature helps make operational
-                # answers more consistent and less creative.
                 "options": {
                     "temperature": 0.1
                 }

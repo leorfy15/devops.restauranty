@@ -1,4 +1,5 @@
 import os
+import requests
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -6,12 +7,10 @@ from pydantic import BaseModel
 from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
 
-from openai import OpenAI
-
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.1.0"
+    version="1.2.0"
 )
 
 NAMESPACE = "restauranty"
@@ -36,15 +35,18 @@ autoscaling_v2 = client.AutoscalingV2Api()
 
 
 # =========================================================
-# OpenAI client
+# Ollama configuration
 # =========================================================
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OLLAMA_URL = os.getenv(
+    "OLLAMA_URL",
+    "http://ollama:11434"
+)
 
-openai_client = None
-
-if OPENAI_API_KEY:
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+OLLAMA_MODEL = os.getenv(
+    "OLLAMA_MODEL",
+    "llama3.2:1b"
+)
 
 
 # =========================================================
@@ -68,10 +70,11 @@ def health():
 
 
 # =========================================================
-# Helpers
+# Kubernetes helpers
 # =========================================================
 
 def get_current_deployments():
+
     deployments = apps_v1.list_namespaced_deployment(
         namespace=NAMESPACE
     )
@@ -96,6 +99,7 @@ def get_current_deployments():
 
 
 def get_current_pods():
+
     pods = core_v1.list_namespaced_pod(
         namespace=NAMESPACE
     )
@@ -132,6 +136,7 @@ def get_current_pods():
 
 
 def get_hpa_status():
+
     hpas = autoscaling_v2.list_namespaced_horizontal_pod_autoscaler(
         namespace=NAMESPACE
     )
@@ -171,7 +176,11 @@ def get_cluster_summary():
     currently_unhealthy_pods = [
         pod
         for pod in pods
-        if pod["phase"] not in ["Running", "Succeeded", "Failed"]
+        if pod["phase"] not in [
+            "Running",
+            "Succeeded",
+            "Failed"
+        ]
         or (
             pod["phase"] == "Running"
             and not pod["ready"]
@@ -180,23 +189,29 @@ def get_cluster_summary():
 
     return {
         "namespace": NAMESPACE,
-        "healthy": len(unhealthy_deployments) == 0
-        and len(currently_unhealthy_pods) == 0,
+
+        "healthy":
+            len(unhealthy_deployments) == 0
+            and len(currently_unhealthy_pods) == 0,
 
         "deployments": deployments,
 
-        "unhealthyDeployments": unhealthy_deployments,
+        "unhealthyDeployments":
+            unhealthy_deployments,
 
-        "currentPodProblems": currently_unhealthy_pods,
+        "currentPodProblems":
+            currently_unhealthy_pods,
 
-        # Failed pods are kept as historical information,
-        # but do not automatically mark the live deployment unhealthy.
-        "historicalFailedPods": failed_pods
+        # Historical failed pods remain visible,
+        # but don't automatically mark the live
+        # application unhealthy.
+        "historicalFailedPods":
+            failed_pods
     }
 
 
 # =========================================================
-# Kubernetes endpoints
+# Kubernetes API endpoints
 # =========================================================
 
 @app.get("/api/assistant/status")
@@ -220,29 +235,50 @@ def get_hpa():
 
 
 # =========================================================
+# Ollama status
+# =========================================================
+
+@app.get("/api/assistant/ollama")
+def ollama_status():
+
+    try:
+        response = requests.get(
+            f"{OLLAMA_URL}/api/tags",
+            timeout=10
+        )
+
+        response.raise_for_status()
+
+        return {
+            "status": "connected",
+            "url": OLLAMA_URL,
+            "model": OLLAMA_MODEL,
+            "ollama": response.json()
+        }
+
+    except requests.RequestException as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"Ollama is unavailable: {str(exc)}"
+        )
+
+
+# =========================================================
 # Chat endpoint
 # =========================================================
 
 @app.post("/api/assistant/chat")
 def chat(request: ChatRequest):
 
-    if not openai_client:
-        raise HTTPException(
-            status_code=503,
-            detail="OPENAI_API_KEY is not configured"
-        )
-
     question = request.message.strip()
 
     if not question:
+
         raise HTTPException(
             status_code=400,
             detail="Message cannot be empty"
         )
-
-    # For now we always give the model live Kubernetes context.
-    # Later we will add proper tool selection for Loki,
-    # Prometheus and Restauranty actions.
 
     cluster_summary = get_cluster_summary()
     hpa_status = get_hpa_status()
@@ -250,36 +286,90 @@ def chat(request: ChatRequest):
     system_prompt = """
 You are the Restauranty DevOps AI Assistant.
 
-You answer questions about the live Restauranty AKS environment.
+You answer questions about the live Restauranty
+Azure Kubernetes Service environment.
 
-Important rules:
+You are provided with live Kubernetes information.
 
-- Only use the supplied live Kubernetes data.
-- Do not invent pod, deployment, replica or health information.
-- Historical failed pods do not mean the application is currently unhealthy
-  if all active deployments have their desired replicas available.
+Rules:
+
+- Only use the infrastructure information supplied to you.
+- Never invent pod, deployment, HPA or health information.
+- Historical failed pods do not mean Restauranty is currently
+  unhealthy when the active deployments have the expected
+  replicas available.
+- Clearly distinguish current problems from historical failures.
 - Explain problems briefly and clearly.
 - If everything is healthy, say so directly.
 - You currently have read-only infrastructure access.
-- You cannot create, modify or delete Kubernetes resources.
+- You cannot modify or delete Kubernetes resources.
 """
 
-    response = openai_client.responses.create(
-        model="gpt-5.6",
-        instructions=system_prompt,
-        input=f"""
-User question:
+    prompt = f"""
+{system_prompt}
+
+USER QUESTION:
+
 {question}
 
-Live deployment and pod status:
+
+LIVE KUBERNETES STATUS:
+
 {cluster_summary}
 
-Live HPA status:
+
+LIVE HPA STATUS:
+
 {hpa_status}
 """
-    )
 
-    return {
-        "question": question,
-        "answer": response.output_text
-    }
+    try:
+
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=180
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        answer = data.get(
+            "response",
+            "Ollama returned no response."
+        )
+
+        return {
+            "question": question,
+            "model": OLLAMA_MODEL,
+            "answer": answer
+        }
+
+    except requests.exceptions.ConnectionError:
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Cannot connect to Ollama at "
+                f"{OLLAMA_URL}"
+            )
+        )
+
+    except requests.exceptions.Timeout:
+
+        raise HTTPException(
+            status_code=504,
+            detail="Ollama took too long to answer"
+        )
+
+    except requests.RequestException as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"Ollama request failed: {str(exc)}"
+        )

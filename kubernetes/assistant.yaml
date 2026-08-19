@@ -27,16 +27,11 @@ spec:
             - containerPort: 8000
 
           env:
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: assistant-secret-kv
-                  key: OPENAI_API_KEY
+            - name: OLLAMA_URL
+              value: "http://ollama:11434"
 
-          volumeMounts:
-            - name: secrets-store-inline
-              mountPath: "/mnt/secrets-store"
-              readOnly: true
+            - name: OLLAMA_MODEL
+              value: "llama3.2:1b"
 
           readinessProbe:
             httpGet:
@@ -53,10 +48,19 @@ spec:
               cpu: "250m"
               memory: "256Mi"
 
-      volumes:
-        - name: secrets-store-inline
-          csi:
-            driver: secrets-store.csi.k8s.io
-            readOnly: true
-            volumeAttributes:
-              secretProviderClass: "restauranty-keyvault"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: assistant
+  namespace: restauranty
+
+spec:
+  selector:
+    app: restauranty-assistant
+
+  ports:
+    - port: 8000
+      targetPort: 8000
+
+  type: ClusterIP

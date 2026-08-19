@@ -32,6 +32,9 @@ spec:
 
             - name: OLLAMA_MODEL
               value: "llama3.2:1b"
+                
+            - name: LOKI_URL
+              value: "http://loki-gateway.monitoring.svc.cluster.local"
 
           readinessProbe:
             httpGet:

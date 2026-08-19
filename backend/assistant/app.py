@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 
 from fastapi import FastAPI, HTTPException
@@ -10,7 +11,7 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.2.0"
+    version="1.3.0"
 )
 
 NAMESPACE = "restauranty"
@@ -46,6 +47,16 @@ OLLAMA_URL = os.getenv(
 OLLAMA_MODEL = os.getenv(
     "OLLAMA_MODEL",
     "llama3.2:1b"
+)
+
+
+# =========================================================
+# Loki configuration
+# =========================================================
+
+LOKI_URL = os.getenv(
+    "LOKI_URL",
+    "http://loki-gateway.monitoring.svc.cluster.local"
 )
 
 
@@ -202,12 +213,82 @@ def get_cluster_summary():
         "currentPodProblems":
             currently_unhealthy_pods,
 
-        # Historical failed pods remain visible,
-        # but don't automatically mark the live
-        # application unhealthy.
         "historicalFailedPods":
             failed_pods
     }
+
+
+# =========================================================
+# Loki helper
+# =========================================================
+
+def query_loki(query, minutes=30, limit=100):
+
+    end_ns = int(time.time() * 1_000_000_000)
+
+    start_ns = (
+        end_ns
+        - minutes
+        * 60
+        * 1_000_000_000
+    )
+
+    try:
+
+        response = requests.get(
+            f"{LOKI_URL}/loki/api/v1/query_range",
+            params={
+                "query": query,
+                "start": start_ns,
+                "end": end_ns,
+                "limit": limit,
+                "direction": "backward"
+            },
+            timeout=15
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        logs = []
+
+        result = (
+            data
+            .get("data", {})
+            .get("result", [])
+        )
+
+        for stream in result:
+
+            labels = stream.get(
+                "stream",
+                {}
+            )
+
+            for timestamp, line in stream.get(
+                "values",
+                []
+            ):
+
+                logs.append({
+                    "timestamp": timestamp,
+                    "app": labels.get("app"),
+                    "pod": labels.get("pod"),
+                    "container": labels.get("container"),
+                    "namespace": labels.get("namespace"),
+                    "line": line
+                })
+
+        return logs
+
+    except requests.RequestException as exc:
+
+        print(
+            f"Loki query failed: {str(exc)}"
+        )
+
+        return []
 
 
 # =========================================================
@@ -216,32 +297,37 @@ def get_cluster_summary():
 
 @app.get("/api/assistant/status")
 def cluster_status():
+
     return get_cluster_summary()
 
 
 @app.get("/api/assistant/pods")
 def get_pods():
+
     return get_current_pods()
 
 
 @app.get("/api/assistant/deployments")
 def get_deployments():
+
     return get_current_deployments()
 
 
 @app.get("/api/assistant/hpa")
 def get_hpa():
+
     return get_hpa_status()
 
 
 # =========================================================
-# Ollama status
+# Ollama status endpoint
 # =========================================================
 
 @app.get("/api/assistant/ollama")
 def ollama_status():
 
     try:
+
         response = requests.get(
             f"{OLLAMA_URL}/api/tags",
             timeout=10
@@ -260,8 +346,69 @@ def ollama_status():
 
         raise HTTPException(
             status_code=503,
-            detail=f"Ollama is unavailable: {str(exc)}"
+            detail=(
+                "Ollama is unavailable: "
+                f"{str(exc)}"
+            )
         )
+
+
+# =========================================================
+# Loki API endpoints
+# =========================================================
+
+@app.get("/api/assistant/logs")
+def recent_logs():
+
+    logs = query_loki(
+        '{namespace="restauranty"}',
+        minutes=30,
+        limit=50
+    )
+
+    return {
+        "timeRangeMinutes": 30,
+        "count": len(logs),
+        "logs": logs
+    }
+
+
+@app.get("/api/assistant/errors")
+def recent_errors():
+
+    logs = query_loki(
+        (
+            '{namespace="restauranty"} '
+            '|~ "(?i)error|exception|failed|500"'
+        ),
+        minutes=30,
+        limit=100
+    )
+
+    return {
+        "timeRangeMinutes": 30,
+        "count": len(logs),
+        "logs": logs
+    }
+
+
+@app.get("/api/assistant/security")
+def security_events():
+
+    logs = query_loki(
+        (
+            '{namespace="honeypot", app="cowrie"} '
+            '|~ "login attempt|CMD:|New connection:"'
+        ),
+        minutes=60,
+        limit=100
+    )
+
+    return {
+        "timeRangeMinutes": 60,
+        "count": len(logs),
+        "logs": logs
+    }
 
 
 # =========================================================
@@ -280,8 +427,80 @@ def chat(request: ChatRequest):
             detail="Message cannot be empty"
         )
 
+
+    # -----------------------------------------------------
+    # Always collect current Kubernetes state
+    # -----------------------------------------------------
+
     cluster_summary = get_cluster_summary()
+
     hpa_status = get_hpa_status()
+
+
+    # -----------------------------------------------------
+    # Determine whether relevant Loki context is needed
+    # -----------------------------------------------------
+
+    question_lower = question.lower()
+
+    log_context = []
+
+    log_keywords = [
+        "log",
+        "logs",
+        "error",
+        "errors",
+        "failed",
+        "failure",
+        "exception",
+        "500"
+    ]
+
+    security_keywords = [
+        "honeypot",
+        "attack",
+        "attacks",
+        "attacker",
+        "attackers",
+        "ssh",
+        "security",
+        "cowrie"
+    ]
+
+
+    if any(
+        word in question_lower
+        for word in security_keywords
+    ):
+
+        log_context = query_loki(
+            (
+                '{namespace="honeypot", app="cowrie"} '
+                '|~ "login attempt|CMD:|New connection:"'
+            ),
+            minutes=60,
+            limit=50
+        )
+
+
+    elif any(
+        word in question_lower
+        for word in log_keywords
+    ):
+
+        log_context = query_loki(
+            (
+                '{namespace="restauranty"} '
+                '|~ "(?i)error|exception|failed|500"'
+            ),
+            minutes=30,
+            limit=50
+        )
+
+
+    # -----------------------------------------------------
+    # System prompt
+    # -----------------------------------------------------
 
     system_prompt = """
 You are the Restauranty DevOps AI Assistant.
@@ -289,24 +508,36 @@ You are the Restauranty DevOps AI Assistant.
 You answer questions about the live Restauranty
 Azure Kubernetes Service environment.
 
-You are provided with live Kubernetes information.
+You are provided with live Kubernetes information
+and, when relevant, live Loki log information.
 
 Rules:
 
 - Only use the infrastructure information supplied to you.
-- Never invent pod, deployment, HPA or health information.
-- Historical failed pods do not mean Restauranty is currently
-  unhealthy when the active deployments have the expected
-  replicas available.
+- Never invent pod, deployment, HPA, metric or log information.
 - Clearly distinguish current problems from historical failures.
-- Explain problems briefly and clearly.
+- Historical failed pods do not automatically mean the current
+  application is unhealthy if active deployments have their
+  expected replicas available.
+- When log information is supplied, use it to explain recent
+  failures or security events.
+- Do not claim an error exists unless it appears in the supplied
+  Kubernetes state or logs.
+- If no matching recent logs were found, say so clearly.
+- Keep explanations concise and useful for a DevOps engineer.
 - If everything is healthy, say so directly.
 - You currently have read-only infrastructure access.
 - You cannot modify or delete Kubernetes resources.
 """
 
+
+    # -----------------------------------------------------
+    # Prompt sent to Ollama
+    # -----------------------------------------------------
+
     prompt = f"""
 {system_prompt}
+
 
 USER QUESTION:
 
@@ -321,17 +552,29 @@ LIVE KUBERNETES STATUS:
 LIVE HPA STATUS:
 
 {hpa_status}
+
+
+RELEVANT LIVE LOKI LOGS:
+
+{log_context}
 """
+
+
+    # -----------------------------------------------------
+    # Call Ollama
+    # -----------------------------------------------------
 
     try:
 
         response = requests.post(
             f"{OLLAMA_URL}/api/generate",
+
             json={
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False
             },
+
             timeout=180
         )
 
@@ -347,8 +590,10 @@ LIVE HPA STATUS:
         return {
             "question": question,
             "model": OLLAMA_MODEL,
+            "logEventsUsed": len(log_context),
             "answer": answer
         }
+
 
     except requests.exceptions.ConnectionError:
 
@@ -360,6 +605,7 @@ LIVE HPA STATUS:
             )
         )
 
+
     except requests.exceptions.Timeout:
 
         raise HTTPException(
@@ -367,9 +613,13 @@ LIVE HPA STATUS:
             detail="Ollama took too long to answer"
         )
 
+
     except requests.RequestException as exc:
 
         raise HTTPException(
             status_code=503,
-            detail=f"Ollama request failed: {str(exc)}"
+            detail=(
+                "Ollama request failed: "
+                f"{str(exc)}"
+            )
         )

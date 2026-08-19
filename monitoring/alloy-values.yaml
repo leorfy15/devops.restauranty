@@ -10,12 +10,12 @@ alloy:
         role = "pod"
       }
 
-      discovery.relabel "restauranty" {
+      discovery.relabel "apps" {
         targets = discovery.kubernetes.pods.targets
 
         rule {
           source_labels = ["__meta_kubernetes_namespace"]
-          regex         = "restauranty"
+          regex         = "restauranty|honeypot"
           action        = "keep"
         }
 
@@ -40,8 +40,8 @@ alloy:
         }
       }
 
-      loki.source.kubernetes "restauranty" {
-        targets    = discovery.relabel.restauranty.output
+      loki.source.kubernetes "apps" {
+        targets    = discovery.relabel.apps.output
         forward_to = [loki.write.local.receiver]
       }
 

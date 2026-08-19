@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: restauranty-assistant
+  namespace: restauranty
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: restauranty-assistant-reader
+  namespace: restauranty
+
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: restauranty-assistant-reader
+  namespace: restauranty
+
+subjects:
+  - kind: ServiceAccount
+    name: restauranty-assistant
+    namespace: restauranty
+
+roleRef:
+  kind: Role
+  name: restauranty-assistant-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: restauranty-assistant
+  namespace: restauranty
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: restauranty-assistant
+
+  template:
+    metadata:
+      labels:
+        app: restauranty-assistant
+
+    spec:
+      serviceAccountName: restauranty-assistant
+
+      containers:
+        - name: assistant
+
+          # CI/CD will eventually replace this tag
+          image: acrrestaurantytatiana.azurecr.io/restauranty-assistant:latest
+
+          ports:
+            - containerPort: 8000
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: assistant
+  namespace: restauranty
+
+spec:
+  selector:
+    app: restauranty-assistant
+
+  ports:
+    - port: 8000
+      targetPort: 8000
+
+  type: ClusterIP

@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # ============================================================
       # Checkout
       # ============================================================
@@ -44,7 +45,7 @@ jobs:
 
 
       # ============================================================
-      # ACR
+      # ACR login
       # ============================================================
 
       - name: Login to Azure Container Registry
@@ -99,6 +100,17 @@ jobs:
             $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG
 
 
+      - name: Build and push Assistant image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG \
+            ./backend/assistant
+
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG
+
+
       - name: Build and push Client image
         run: |
           docker build \
@@ -125,9 +137,8 @@ jobs:
       # ============================================================
       # Inject current Git SHA into Kubernetes manifests
       #
-      # Important:
-      # These edits happen only inside the temporary GitHub runner.
-      # They do NOT modify your Git repository.
+      # These changes happen only inside the temporary GitHub runner.
+      # They do NOT modify the YAML files in the repository.
       # ============================================================
 
       - name: Set Kubernetes image tags
@@ -145,15 +156,16 @@ jobs:
             kubernetes/items.yaml
 
           sed -i \
+            "s|image: $ACR_LOGIN_SERVER/restauranty-assistant:.*|image: $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG|" \
+            kubernetes/assistant.yaml
+
+          sed -i \
             "s|image: $ACR_LOGIN_SERVER/restauranty-client:.*|image: $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG|" \
             kubernetes/client.yaml
 
 
       # ============================================================
       # Apply Kubernetes configuration
-      #
-      # The manifests ALREADY contain the correct SHA image here,
-      # so kubectl apply cannot roll the workloads back to v1.
       # ============================================================
 
       - name: Apply Kubernetes manifests
@@ -161,6 +173,7 @@ jobs:
           kubectl apply -f kubernetes/auth.yaml
           kubectl apply -f kubernetes/discounts.yaml
           kubectl apply -f kubernetes/items.yaml
+          kubectl apply -f kubernetes/assistant.yaml
           kubectl apply -f kubernetes/client.yaml
 
           kubectl apply -f kubernetes/ingress.yaml
@@ -192,9 +205,14 @@ jobs:
             -n $NAMESPACE \
             --timeout=300s
 
+          kubectl rollout status deployment/restauranty-assistant \
+            -n $NAMESPACE \
+            --timeout=300s
+
           kubectl rollout status deployment/restauranty-client \
             -n $NAMESPACE \
             --timeout=300s
+
 
       # ============================================================
       # Verify deployed images
@@ -210,6 +228,7 @@ jobs:
             restauranty-auth \
             restauranty-discounts \
             restauranty-items \
+            restauranty-assistant \
             restauranty-client \
             -n $NAMESPACE \
             -o 'custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
@@ -232,3 +251,8 @@ jobs:
           echo ""
           echo "Ingress:"
           kubectl get ingress -n $NAMESPACE
+
+          echo ""
+          echo "Assistant:"
+          kubectl get deployment restauranty-assistant -n $NAMESPACE
+          kubectl get svc assistant -n $NAMESPACE

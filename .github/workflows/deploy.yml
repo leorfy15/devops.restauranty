@@ -54,7 +54,7 @@ jobs:
 
 
       # ============================================================
-      # Image tag
+      # Git SHA image tag
       # ============================================================
 
       - name: Set image tag
@@ -135,10 +135,7 @@ jobs:
 
 
       # ============================================================
-      # Inject current Git SHA into Kubernetes manifests
-      #
-      # These changes happen only inside the temporary GitHub runner.
-      # They do NOT modify the YAML files in the repository.
+      # Inject Git SHA into manifests
       # ============================================================
 
       - name: Set Kubernetes image tags
@@ -165,22 +162,12 @@ jobs:
 
 
       # ============================================================
-      # Apply Kubernetes configuration
+      # Shared Kubernetes configuration
       # ============================================================
 
-      - name: Apply Kubernetes manifests
+      - name: Apply shared Kubernetes configuration
         run: |
-          kubectl apply -f kubernetes/auth.yaml
-          kubectl apply -f kubernetes/discounts.yaml
-          kubectl apply -f kubernetes/items.yaml
-          kubectl apply -f kubernetes/assistant.yaml
-          kubectl apply -f kubernetes/client.yaml
-
-          kubectl apply -f kubernetes/ingress.yaml
-
-          if [ -f kubernetes/hpa.yaml ]; then
-            kubectl apply -f kubernetes/hpa.yaml
-          fi
+          echo "Applying SecretProviderClass..."
 
           if [ -f kubernetes/secretproviderclass.yaml ]; then
             kubectl apply -f kubernetes/secretproviderclass.yaml
@@ -188,30 +175,88 @@ jobs:
 
 
       # ============================================================
-      # Wait for deployments
+      # Sequential application deployment
+      #
+      # Deploy ONE workload at a time to avoid simultaneous
+      # RollingUpdate surge pods exhausting node capacity.
       # ============================================================
 
-      - name: Wait for rollouts
+      - name: Deploy Auth
         run: |
+          echo "======================================"
+          echo " Deploying Auth"
+          echo "======================================"
+
+          kubectl apply -f kubernetes/auth.yaml
+
           kubectl rollout status deployment/restauranty-auth \
             -n $NAMESPACE \
             --timeout=300s
+
+
+      - name: Deploy Discounts
+        run: |
+          echo "======================================"
+          echo " Deploying Discounts"
+          echo "======================================"
+
+          kubectl apply -f kubernetes/discounts.yaml
 
           kubectl rollout status deployment/restauranty-discounts \
             -n $NAMESPACE \
             --timeout=300s
 
+
+      - name: Deploy Items
+        run: |
+          echo "======================================"
+          echo " Deploying Items"
+          echo "======================================"
+
+          kubectl apply -f kubernetes/items.yaml
+
           kubectl rollout status deployment/restauranty-items \
             -n $NAMESPACE \
             --timeout=300s
+
+
+      - name: Deploy Assistant
+        run: |
+          echo "======================================"
+          echo " Deploying AI Assistant"
+          echo "======================================"
+
+          kubectl apply -f kubernetes/assistant.yaml
 
           kubectl rollout status deployment/restauranty-assistant \
             -n $NAMESPACE \
             --timeout=300s
 
+
+      - name: Deploy Client
+        run: |
+          echo "======================================"
+          echo " Deploying Client"
+          echo "======================================"
+
+          kubectl apply -f kubernetes/client.yaml
+
           kubectl rollout status deployment/restauranty-client \
             -n $NAMESPACE \
             --timeout=300s
+
+
+      # ============================================================
+      # HPA + Ingress
+      # ============================================================
+
+      - name: Apply HPA and Ingress
+        run: |
+          if [ -f kubernetes/hpa.yaml ]; then
+            kubectl apply -f kubernetes/hpa.yaml
+          fi
+
+          kubectl apply -f kubernetes/ingress.yaml
 
 
       # ============================================================
@@ -241,18 +286,40 @@ jobs:
       - name: Show deployment status
         run: |
           echo ""
-          echo "Pods:"
+          echo "======================================"
+          echo " Pods"
+          echo "======================================"
+
           kubectl get pods -n $NAMESPACE
 
           echo ""
-          echo "HPA:"
+          echo "======================================"
+          echo " Deployments"
+          echo "======================================"
+
+          kubectl get deployments -n $NAMESPACE
+
+          echo ""
+          echo "======================================"
+          echo " HPA"
+          echo "======================================"
+
           kubectl get hpa -n $NAMESPACE || true
 
           echo ""
-          echo "Ingress:"
+          echo "======================================"
+          echo " Ingress"
+          echo "======================================"
+
           kubectl get ingress -n $NAMESPACE
 
           echo ""
-          echo "Assistant:"
-          kubectl get deployment restauranty-assistant -n $NAMESPACE
-          kubectl get svc assistant -n $NAMESPACE
+          echo "======================================"
+          echo " AI Assistant"
+          echo "======================================"
+
+          kubectl get deployment restauranty-assistant \
+            -n $NAMESPACE
+
+          kubectl get svc assistant \
+            -n $NAMESPACE

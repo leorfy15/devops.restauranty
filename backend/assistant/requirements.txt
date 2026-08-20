@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 kubernetes
 requests
+msgpack>=1.2.1
+setuptools>=78.1.1

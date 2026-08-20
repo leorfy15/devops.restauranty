@@ -1,9 +1,10 @@
-name: Build and Deploy Restauranty
+name: Build, Scan and Deploy Restauranty
 
 on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
@@ -18,16 +19,15 @@ env:
   NAMESPACE: restauranty
 
 jobs:
-  build-and-deploy:
+  build-scan-deploy:
     runs-on: ubuntu-latest
 
     steps:
 
-      # Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Azure authentication
+
       - name: Azure login using OIDC
         uses: azure/login@v2
         with:
@@ -35,24 +35,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # ACR login
+
       - name: Login to Azure Container Registry
         run: |
           az acr login --name $ACR_NAME
 
-      # Git SHA image tag
+
       - name: Set image tag
         run: |
           echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "Deploying image tag: ${GITHUB_SHA::7}"
+          echo "Image tag: ${GITHUB_SHA::7}"
 
-      # Auth - Build, scan and push
+
+      # AUTH
+
       - name: Build Auth image
         run: |
           docker build \
             --platform linux/amd64 \
             -t $ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG \
             ./backend/auth
+
 
       - name: Scan Auth image with Trivy
         uses: aquasecurity/trivy-action@master
@@ -61,20 +64,25 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          vuln-type: 'os,library'
+          scanners: 'vuln'
           severity: 'CRITICAL,HIGH'
+
 
       - name: Push Auth image
         run: |
-          docker push $ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG
 
-      # Discounts - Build, scan and push
+
+      # DISCOUNTS
+
       - name: Build Discounts image
         run: |
           docker build \
             --platform linux/amd64 \
             -t $ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG \
             ./backend/discounts
+
 
       - name: Scan Discounts image with Trivy
         uses: aquasecurity/trivy-action@master
@@ -83,20 +91,25 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          vuln-type: 'os,library'
+          scanners: 'vuln'
           severity: 'CRITICAL,HIGH'
+
 
       - name: Push Discounts image
         run: |
-          docker push $ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG
 
-      # Items - Build, scan and push
+
+      # ITEMS
+
       - name: Build Items image
         run: |
           docker build \
             --platform linux/amd64 \
             -t $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG \
             ./backend/items
+
 
       - name: Scan Items image with Trivy
         uses: aquasecurity/trivy-action@master
@@ -105,30 +118,57 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          vuln-type: 'os,library'
+          scanners: 'vuln'
           severity: 'CRITICAL,HIGH'
+
 
       - name: Push Items image
         run: |
-          docker push $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG
 
-      # Assistant - Trivy will be added after hardening
-      - name: Build and push Assistant image
+
+      # ASSISTANT
+
+      - name: Check Assistant Python syntax
+        run: |
+          python3 -m py_compile backend/assistant/app.py
+
+
+      - name: Build Assistant image
         run: |
           docker build \
             --platform linux/amd64 \
             -t $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG \
             ./backend/assistant
 
-          docker push $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG
 
-      # Client - Build, scan and push
+      - name: Scan Assistant image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.ACR_LOGIN_SERVER }}/restauranty-assistant:${{ env.IMAGE_TAG }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          scanners: 'vuln'
+          severity: 'CRITICAL,HIGH'
+
+
+      - name: Push Assistant image
+        run: |
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG
+
+
+      # CLIENT
+
       - name: Build Client image
         run: |
           docker build \
             --platform linux/amd64 \
             -t $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG \
             ./client
+
 
       - name: Scan Client image with Trivy
         uses: aquasecurity/trivy-action@master
@@ -137,14 +177,18 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          vuln-type: 'os,library'
+          scanners: 'vuln'
           severity: 'CRITICAL,HIGH'
+
 
       - name: Push Client image
         run: |
-          docker push $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG
+          docker push \
+            $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG
 
-      # AKS authentication
+
+      # AKS
+
       - name: Get AKS credentials
         run: |
           az aks get-credentials \
@@ -152,7 +196,7 @@ jobs:
             --name $AKS_CLUSTER \
             --overwrite-existing
 
-      # Set Kubernetes image tags
+
       - name: Set Kubernetes image tags
         run: |
           sed -i \
@@ -175,59 +219,81 @@ jobs:
             "s|image: $ACR_LOGIN_SERVER/restauranty-client:.*|image: $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG|" \
             kubernetes/client.yaml
 
-      # Shared Kubernetes configuration
+
       - name: Apply shared Kubernetes configuration
         run: |
           if [ -f kubernetes/secretproviderclass.yaml ]; then
             kubectl apply -f kubernetes/secretproviderclass.yaml
           fi
 
-      # Deploy Auth
+
+      # DEPLOY AUTH
+
       - name: Deploy Auth
         run: |
+          echo "Deploying Auth..."
+
           kubectl apply -f kubernetes/auth.yaml
 
           kubectl rollout status deployment/restauranty-auth \
             -n $NAMESPACE \
             --timeout=300s
 
-      # Deploy Discounts
+
+      # DEPLOY DISCOUNTS
+
       - name: Deploy Discounts
         run: |
+          echo "Deploying Discounts..."
+
           kubectl apply -f kubernetes/discounts.yaml
 
           kubectl rollout status deployment/restauranty-discounts \
             -n $NAMESPACE \
             --timeout=300s
 
-      # Deploy Items
+
+      # DEPLOY ITEMS
+
       - name: Deploy Items
         run: |
+          echo "Deploying Items..."
+
           kubectl apply -f kubernetes/items.yaml
 
           kubectl rollout status deployment/restauranty-items \
             -n $NAMESPACE \
             --timeout=300s
 
-      # Deploy Assistant
+
+      # DEPLOY ASSISTANT
+
       - name: Deploy Assistant
         run: |
+          echo "Deploying AI Assistant..."
+
           kubectl apply -f kubernetes/assistant.yaml
 
           kubectl rollout status deployment/restauranty-assistant \
             -n $NAMESPACE \
             --timeout=300s
 
-      # Deploy Client
+
+      # DEPLOY CLIENT
+
       - name: Deploy Client
         run: |
+          echo "Deploying Client..."
+
           kubectl apply -f kubernetes/client.yaml
 
           kubectl rollout status deployment/restauranty-client \
             -n $NAMESPACE \
             --timeout=300s
 
-      # HPA and Ingress
+
+      # HPA AND INGRESS
+
       - name: Apply HPA and Ingress
         run: |
           if [ -f kubernetes/hpa.yaml ]; then
@@ -236,9 +302,13 @@ jobs:
 
           kubectl apply -f kubernetes/ingress.yaml
 
-      # Verify deployed images
+
+      # VERIFY
+
       - name: Verify deployed images
         run: |
+          echo "Deployed Restauranty images:"
+
           kubectl get deployment \
             restauranty-auth \
             restauranty-discounts \
@@ -248,25 +318,29 @@ jobs:
             -n $NAMESPACE \
             -o 'custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
 
-      # Final deployment status
+
       - name: Show deployment status
         run: |
-          echo "Pods:"
+          echo ""
+          echo "PODS"
           kubectl get pods -n $NAMESPACE
 
           echo ""
-          echo "Deployments:"
+          echo "DEPLOYMENTS"
           kubectl get deployments -n $NAMESPACE
 
           echo ""
-          echo "HPA:"
+          echo "HPA"
           kubectl get hpa -n $NAMESPACE || true
 
           echo ""
-          echo "Ingress:"
+          echo "INGRESS"
           kubectl get ingress -n $NAMESPACE
 
           echo ""
-          echo "AI Assistant:"
-          kubectl get deployment restauranty-assistant -n $NAMESPACE
-          kubectl get svc assistant -n $NAMESPACE
+          echo "AI ASSISTANT"
+          kubectl get deployment restauranty-assistant \
+            -n $NAMESPACE
+
+          kubectl get svc assistant \
+            -n $NAMESPACE

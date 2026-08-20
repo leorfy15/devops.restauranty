@@ -1143,7 +1143,6 @@ NORMALIZED PROMETHEUS METRICS:
 
 
     except requests.exceptions.Timeout:
-
         raise HTTPException(
             status_code=504,
             detail=(

@@ -1,8 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../../context/auth.context";
-import { BiLogOut, BiListPlus, BiListUl, BiSolidDiscount, BiSolidCategoryAlt } from 'react-icons/bi';
-import { MdCampaign } from 'react-icons/md'
+import { BiLogOut, BiListPlus, BiListUl, BiSolidDiscount, BiSolidCategoryAlt } from 'react-icons/bi';import {
+  MdCampaign,
+  MdSmartToy
+} from 'react-icons/md'
 import { BsFillPersonFill } from 'react-icons/bs'
 
 function Navbar() {

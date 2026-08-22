@@ -21,12 +21,14 @@ import CouponsPageList from "./pages/Admin/Coupons/CouponsPageList/CouponsPageLi
 import EditCoupon from "./pages/Admin/Coupons/EditCoupon/EditCoupon";
 
 import CreateDietary from "./pages/Admin/Dietary/CreateDietary/CreateDietary";
-import DietaryPageList from "./pages/Admin/Dietary/DietaryPageList/DietaryPageList"
-import EditDietary from "./pages/Admin/Dietary/EditDietary/EditDietary"
+import DietaryPageList from "./pages/Admin/Dietary/DietaryPageList/DietaryPageList";
+import EditDietary from "./pages/Admin/Dietary/EditDietary/EditDietary";
 
 import CreateCampaign from "./pages/Admin/Campaigns/CreateCampaign/CreateCampaign";
 import CampaignsPageList from "./pages/Admin/Campaigns/CampaignsPageList/CampaignsPageList";
 import EditCampaign from "./pages/Admin/Campaigns/EditCampaign/EditCampaign";
+
+import AssistantPage from "./pages/Admin/Assistant/AssistantPage";
 
 function App() {
   return (
@@ -36,11 +38,15 @@ function App() {
 
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/home" element={
-            <IsPrivate>
-              <HomePage />
-            </IsPrivate>
-          } />
+
+          <Route
+            path="/home"
+            element={
+              <IsPrivate>
+                <HomePage />
+              </IsPrivate>
+            }
+          />
 
           <Route
             path="/profile"
@@ -50,6 +56,7 @@ function App() {
               </IsPrivate>
             }
           />
+
           <Route
             path="/items"
             element={
@@ -58,6 +65,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/discounts/coupons"
             element={
@@ -66,6 +74,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/items:itemId"
             element={
@@ -74,6 +83,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/createcoupon"
             element={
@@ -82,6 +92,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/createitem"
             element={
@@ -90,6 +101,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/createcampaign"
             element={
@@ -98,6 +110,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/discounts/campaigns"
             element={
@@ -106,6 +119,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/editItem/:itemId"
             element={
@@ -114,6 +128,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/editCoupon/:CouponId"
             element={
@@ -122,6 +137,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/EditCampaign/:CampaignId"
             element={
@@ -130,6 +146,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/signup"
             element={
@@ -138,6 +155,7 @@ function App() {
               </IsAnon>
             }
           />
+
           <Route
             path="/login"
             element={
@@ -146,6 +164,7 @@ function App() {
               </IsAnon>
             }
           />
+
           <Route
             path="/createdietary"
             element={
@@ -154,6 +173,7 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/dietary"
             element={
@@ -162,11 +182,21 @@ function App() {
               </IsAdmin>
             }
           />
+
           <Route
             path="/editDietary/:DietaryId"
             element={
               <IsAdmin>
                 <EditDietary />
+              </IsAdmin>
+            }
+          />
+
+          <Route
+            path="/assistant"
+            element={
+              <IsAdmin>
+                <AssistantPage />
               </IsAdmin>
             }
           />

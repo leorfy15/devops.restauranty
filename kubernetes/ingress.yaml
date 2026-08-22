@@ -42,7 +42,15 @@ spec:
                 name: items
                 port:
                   number: 3003
-
+          
+          - path: /api/assistant
+            pathType: Prefix
+            backend:
+              service:
+                name: assistant
+                port:
+                  number: 8000
+                  
           - path: /
             pathType: Prefix
             backend:

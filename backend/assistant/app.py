@@ -1,5 +1,6 @@
 import os
 import time
+import re
 import requests
 
 from fastapi import FastAPI, HTTPException
@@ -11,7 +12,7 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.6.0"
+    version="1.7.0"
 )
 
 NAMESPACE = "restauranty"
@@ -300,6 +301,193 @@ def query_loki(query, minutes=30, limit=100):
         )
 
         return []
+
+
+# =========================================================
+# Loki error filtering
+# =========================================================
+
+ANSI_ESCAPE = re.compile(
+    r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])"
+)
+
+
+def clean_log_line(line):
+    return ANSI_ESCAPE.sub("", line or "").strip()
+
+
+def is_real_error_log(log):
+    """
+    Final deterministic validation for application-error logs.
+
+    Loki is used to retrieve recent Restauranty logs, but Python
+    decides whether an entry is a real application error. This
+    prevents values such as 0.500 ms or 500000.0 from being
+    misclassified as HTTP 500 errors.
+    """
+
+    line = clean_log_line(
+        log.get("line", "")
+    )
+
+    line_lower = line.lower()
+
+    # Requests to the assistant error endpoint are not themselves errors.
+    if "/api/assistant/errors" in line_lower:
+        return False
+
+    # Common explicit error/failure indicators.
+    error_indicators = [
+        "error:",
+        "exception",
+        "traceback",
+        "failed",
+        "fatal",
+        "panic",
+        "unhandled rejection",
+        "connection refused",
+        "connection reset",
+        "timed out",
+        "timeout",
+    ]
+
+    if any(
+        indicator in line_lower
+        for indicator in error_indicators
+    ):
+        return True
+
+    # Uvicorn / HTTP access log style:
+    # "GET /path HTTP/1.1" 500
+    if re.search(
+        r'HTTP/\d(?:\.\d)?[" ]+\s*5\d\d\b',
+        line,
+        re.IGNORECASE,
+    ):
+        return True
+
+    # Express / Morgan style:
+    # GET /path 500 12.3 ms
+    if re.search(
+        r'\b(?:GET|POST|PUT|PATCH|DELETE)\s+\S+\s+5\d\d\b',
+        line,
+        re.IGNORECASE,
+    ):
+        return True
+
+    # Generic structured status/statusCode field with a 5xx value.
+    if re.search(
+        r'\b(?:status|statuscode)\b[^0-9]{0,8}5\d\d\b',
+        line,
+        re.IGNORECASE,
+    ):
+        return True
+
+    return False
+
+
+def get_recent_error_logs(minutes=30, limit=200):
+    """
+    Retrieve recent Restauranty logs from Loki and keep only
+    entries that Python deterministically classifies as errors.
+    """
+
+    candidate_logs = query_loki(
+        '{namespace="restauranty"}',
+        minutes=minutes,
+        limit=limit
+    )
+
+    return [
+        log
+        for log in candidate_logs
+        if is_real_error_log(log)
+    ]
+
+
+def build_error_summary(error_logs, cluster_summary, minutes=30):
+    """
+    Build a deterministic operational answer so raw log entries
+    are not freely reinterpreted by the language model.
+    """
+
+    if not error_logs:
+        return (
+            f"No matching recent application errors were found "
+            f"in the last {minutes} minutes."
+        )
+
+    counts = {}
+
+    for log in error_logs:
+        app_name = (
+            log.get("app")
+            or log.get("container")
+            or "unknown"
+        )
+
+        counts[app_name] = (
+            counts.get(app_name, 0) + 1
+        )
+
+    ordered = sorted(
+        counts.items(),
+        key=lambda item: (-item[1], item[0])
+    )
+
+    event_text = "; ".join(
+        f"{app_name}: {count} event(s)"
+        for app_name, count in ordered
+    )
+
+    if cluster_summary.get("healthy"):
+        current_health = (
+            "All Restauranty deployments are currently healthy "
+            "and available."
+        )
+    else:
+        unhealthy = [
+            deployment.get("name")
+            for deployment
+            in cluster_summary.get(
+                "unhealthyDeployments",
+                []
+            )
+        ]
+
+        pod_problems = [
+            pod.get("name")
+            for pod
+            in cluster_summary.get(
+                "currentPodProblems",
+                []
+            )
+        ]
+
+        current = [
+            item
+            for item in (
+                unhealthy + pod_problems
+            )
+            if item
+        ]
+
+        if current:
+            current_health = (
+                "Current Kubernetes problems: "
+                + ", ".join(current)
+                + "."
+            )
+        else:
+            current_health = (
+                "Kubernetes currently reports a health issue."
+            )
+
+    return (
+        f"I found {len(error_logs)} recent application error "
+        f"event(s) in the last {minutes} minutes. "
+        f"{event_text}. {current_health}"
+    )
 
 
 # =========================================================
@@ -654,13 +842,9 @@ def recent_logs():
 @app.get("/api/assistant/errors")
 def recent_errors():
 
-    logs = query_loki(
-        (
-            '{namespace="restauranty"} '
-            '|~ "(?i)error|exception|failed|500"'
-        ),
+    logs = get_recent_error_logs(
         minutes=30,
-        limit=100
+        limit=200
     )
 
     return {
@@ -700,7 +884,81 @@ def metrics():
 
 
 # =========================================================
-# Chat
+# Direct Llama chat
+# =========================================================
+
+@app.post("/api/assistant/model-chat")
+def model_chat(request: ChatRequest):
+
+    question = request.message.strip()
+
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot be empty"
+        )
+
+    try:
+
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": question,
+                "stream": False,
+                "options": {
+                    "temperature": 0.3
+                }
+            },
+            timeout=180
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        answer = data.get(
+            "response",
+            "Ollama returned no response."
+        )
+
+        return {
+            "question": question,
+            "model": OLLAMA_MODEL,
+            "mode": "direct",
+            "answer": answer.strip()
+        }
+
+    except requests.exceptions.ConnectionError:
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Cannot connect to Ollama at "
+                f"{OLLAMA_URL}"
+            )
+        )
+
+    except requests.exceptions.Timeout:
+
+        raise HTTPException(
+            status_code=504,
+            detail="Ollama took too long to answer"
+        )
+
+    except requests.RequestException as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Ollama request failed: "
+                f"{str(exc)}"
+            )
+        )
+
+
+# =========================================================
+# DevOps chat
 # =========================================================
 
 @app.post("/api/assistant/chat")
@@ -880,6 +1138,60 @@ def chat(request: ChatRequest):
 
 
     # =====================================================
+    # Deterministic application-error answers
+    # =====================================================
+
+    error_question = (
+        any(
+            phrase in question_lower
+            for phrase in [
+                "error",
+                "errors",
+                "exception",
+                "exceptions",
+                "failed request",
+                "failed requests",
+                "application failure",
+                "application failures"
+            ]
+        )
+        and not any(
+            word in question_lower
+            for word in [
+                "honeypot",
+                "attack",
+                "attacker",
+                "security",
+                "cowrie"
+            ]
+        )
+    )
+
+    if error_question:
+
+        cluster_summary = (
+            get_cluster_summary()
+        )
+
+        error_logs = get_recent_error_logs(
+            minutes=30,
+            limit=200
+        )
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "logEventsUsed": len(error_logs),
+            "metricsUsed": False,
+            "answer": build_error_summary(
+                error_logs,
+                cluster_summary,
+                minutes=30
+            )
+        }
+
+
+    # =====================================================
     # Live Kubernetes context
     # =====================================================
 
@@ -963,13 +1275,9 @@ def chat(request: ChatRequest):
         for word in log_keywords
     ):
 
-        log_context = query_loki(
-            (
-                '{namespace="restauranty"} '
-                '|~ "(?i)error|exception|failed|500"'
-            ),
+        log_context = get_recent_error_logs(
             minutes=30,
-            limit=50
+            limit=200
         )
 
 
@@ -1004,6 +1312,30 @@ You may receive:
 - Loki logs
 - Prometheus metrics
 
+SOURCE PRIORITY:
+
+1. Kubernetes state is authoritative for CURRENT
+   pod and deployment health.
+
+2. Prometheus is authoritative for CURRENT
+   CPU and memory measurements.
+
+3. Loki contains HISTORICAL log events.
+   A Loki error does not mean the application
+   is currently unhealthy.
+
+4. When Loki shows a previous failure but
+   Kubernetes currently reports the workload
+   as healthy, explicitly describe the event
+   as historical and say that the workload
+   is currently healthy.
+
+5. Never describe a deployment or pod as
+   currently unhealthy unless the supplied
+   Kubernetes state shows it is currently
+   unhealthy, unavailable, pending, failed,
+   or not ready.
+
 Rules:
 
 1. Only use supplied live data.
@@ -1026,34 +1358,46 @@ Rules:
 8. Clearly distinguish current problems
    from historical events.
 
-9. Historical failed pods do not automatically
-   mean Restauranty is currently unhealthy.
+9. Historical failed pods or historical Loki
+   errors do not automatically mean Restauranty
+   is currently unhealthy.
 
-10. Never claim an error exists unless it appears
-    in the Kubernetes state or Loki logs.
+10. If Kubernetes shows all deployments healthy,
+    never say that a deployment currently has
+    unhealthy replicas solely because an older
+    Loki log contains an error.
 
-11. If no relevant logs exist, simply say no
+11. When asked for recent errors, report what
+    actually appears in Loki and distinguish
+    those errors from the current cluster state.
+
+12. If no relevant logs exist, simply say no
     matching recent events were found.
 
-12. When discussing security events, mention
+13. When discussing security events, mention
     relevant source IPs, login attempts and
     executed commands when present.
 
-13. Do not omit relevant events simply because
+14. Do not omit relevant events simply because
     another event appears more important.
 
-14. Keep answers concise.
+15. Keep answers concise.
 
-15. Do not repeat the user's question.
+16. Do not repeat the user's question.
 
-16. Do not give unrelated CPU information when
+17. Do not give unrelated CPU information when
     asked about memory, or memory information
     when asked about CPU.
 
-17. Do not say "No matching recent events were found"
+18. Do not say "No matching recent events were found"
     unless the user's question is actually about
     logs, errors, or security events.
 
+19. If historical logs conflict with current
+    Kubernetes health, explain both:
+    what happened historically and what the
+    current state is now.
+    
 You currently have read-only infrastructure access.
 """
 

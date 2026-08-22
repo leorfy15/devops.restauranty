@@ -12,7 +12,7 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.8.0"
+    version="1.9.0"
 )
 
 NAMESPACE = "restauranty"
@@ -58,6 +58,17 @@ LOKI_URL = os.getenv(
 PROMETHEUS_URL = os.getenv(
     "PROMETHEUS_URL",
     "http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
+)
+
+
+ITEMS_URL = os.getenv(
+    "ITEMS_URL",
+    "http://items:3003"
+)
+
+DISCOUNTS_URL = os.getenv(
+    "DISCOUNTS_URL",
+    "http://discounts:3002"
 )
 
 
@@ -923,6 +934,143 @@ def get_metrics_summary():
 
 
 # =========================================================
+# Restauranty application API helpers
+# =========================================================
+
+def get_json(url, timeout=15):
+
+    try:
+
+        response = requests.get(
+            url,
+            timeout=timeout
+        )
+
+        response.raise_for_status()
+
+        return response.json()
+
+    except requests.RequestException as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Restauranty application API request failed: "
+                f"{str(exc)}"
+            )
+        )
+
+
+def get_restauranty_items():
+    return get_json(
+        f"{ITEMS_URL}/api/items/items"
+    )
+
+
+def get_restauranty_dietary():
+    return get_json(
+        f"{ITEMS_URL}/api/items/dietary"
+    )
+
+
+def get_restauranty_coupons():
+    return get_json(
+        f"{DISCOUNTS_URL}/api/discounts/coupons"
+    )
+
+
+def get_restauranty_campaigns():
+    return get_json(
+        f"{DISCOUNTS_URL}/api/discounts/campaign"
+    )
+
+
+def normalize_collection(data):
+
+    if isinstance(data, list):
+        return data
+
+    if isinstance(data, dict):
+
+        for key in [
+            "items",
+            "dietary",
+            "categories",
+            "coupons",
+            "campaigns",
+            "data"
+        ]:
+            value = data.get(key)
+
+            if isinstance(value, list):
+                return value
+
+    return []
+
+
+def first_text_value(item, keys):
+
+    if not isinstance(item, dict):
+        return None
+
+    for key in keys:
+
+        value = item.get(key)
+
+        if value not in [
+            None,
+            "",
+            []
+        ]:
+            return str(value)
+
+    return None
+
+
+def summarize_named_collection(
+    data,
+    collection_name,
+    name_keys
+):
+
+    collection = normalize_collection(
+        data
+    )
+
+    if not collection:
+        return (
+            f"No {collection_name} were returned "
+            f"by the Restauranty application API."
+        )
+
+    names = []
+
+    for item in collection:
+
+        value = first_text_value(
+            item,
+            name_keys
+        )
+
+        if value:
+            names.append(value)
+
+    if names:
+
+        return (
+            f"Restauranty currently has "
+            f"{len(collection)} {collection_name}: "
+            + ", ".join(names)
+            + "."
+        )
+
+    return (
+        f"Restauranty currently has "
+        f"{len(collection)} {collection_name}."
+    )
+
+
+# =========================================================
 # Kubernetes API endpoints
 # =========================================================
 
@@ -948,6 +1096,46 @@ def get_deployments():
 def get_hpa():
 
     return get_hpa_status()
+
+
+# =========================================================
+# Restauranty application read-only endpoints
+# =========================================================
+
+@app.get("/api/assistant/app/items")
+def app_items():
+    return {
+        "source": "items-service",
+        "readOnly": True,
+        "data": get_restauranty_items()
+    }
+
+
+@app.get("/api/assistant/app/dietary")
+def app_dietary():
+    return {
+        "source": "items-service",
+        "readOnly": True,
+        "data": get_restauranty_dietary()
+    }
+
+
+@app.get("/api/assistant/app/coupons")
+def app_coupons():
+    return {
+        "source": "discounts-service",
+        "readOnly": True,
+        "data": get_restauranty_coupons()
+    }
+
+
+@app.get("/api/assistant/app/campaigns")
+def app_campaigns():
+    return {
+        "source": "discounts-service",
+        "readOnly": True,
+        "data": get_restauranty_campaigns()
+    }
 
 
 # =========================================================
@@ -1296,6 +1484,186 @@ def chat(request: ChatRequest):
                 "Pods with restarts: "
                 + "; ".join(lines)
             )
+        }
+
+
+    # =====================================================
+    # Deterministic Restauranty application read answers
+    # =====================================================
+
+    dietary_question = (
+        any(
+            word in question_lower
+            for word in [
+                "dietary",
+                "category",
+                "categories"
+            ]
+        )
+        and not any(
+            word in question_lower
+            for word in [
+                "create",
+                "add",
+                "delete",
+                "remove",
+                "update",
+                "edit"
+            ]
+        )
+    )
+
+    if dietary_question:
+
+        data = get_restauranty_dietary()
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "source": "items-service",
+            "readOnly": True,
+            "logEventsUsed": 0,
+            "metricsUsed": False,
+            "answer": summarize_named_collection(
+                data,
+                "dietary categories",
+                [
+                    "name",
+                    "title",
+                    "category",
+                    "dietary"
+                ]
+            ),
+            "data": data
+        }
+
+
+    coupon_question = (
+        (
+            "coupon" in question_lower
+            or "coupons" in question_lower
+        )
+        and not any(
+            word in question_lower
+            for word in [
+                "create",
+                "add",
+                "delete",
+                "remove",
+                "update",
+                "edit"
+            ]
+        )
+    )
+
+    if coupon_question:
+
+        data = get_restauranty_coupons()
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "source": "discounts-service",
+            "readOnly": True,
+            "logEventsUsed": 0,
+            "metricsUsed": False,
+            "answer": summarize_named_collection(
+                data,
+                "coupons",
+                [
+                    "name",
+                    "title",
+                    "code",
+                    "coupon"
+                ]
+            ),
+            "data": data
+        }
+
+
+    campaign_question = (
+        (
+            "campaign" in question_lower
+            or "campaigns" in question_lower
+        )
+        and not any(
+            word in question_lower
+            for word in [
+                "create",
+                "add",
+                "delete",
+                "remove",
+                "update",
+                "edit"
+            ]
+        )
+    )
+
+    if campaign_question:
+
+        data = get_restauranty_campaigns()
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "source": "discounts-service",
+            "readOnly": True,
+            "logEventsUsed": 0,
+            "metricsUsed": False,
+            "answer": summarize_named_collection(
+                data,
+                "campaigns",
+                [
+                    "name",
+                    "title",
+                    "campaign"
+                ]
+            ),
+            "data": data
+        }
+
+
+    items_question = (
+        (
+            "menu item" in question_lower
+            or "menu items" in question_lower
+            or "items" in question_lower
+            or "item" in question_lower
+        )
+        and not any(
+            word in question_lower
+            for word in [
+                "create",
+                "add",
+                "delete",
+                "remove",
+                "update",
+                "edit"
+            ]
+        )
+    )
+
+    if items_question:
+
+        data = get_restauranty_items()
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "source": "items-service",
+            "readOnly": True,
+            "logEventsUsed": 0,
+            "metricsUsed": False,
+            "answer": summarize_named_collection(
+                data,
+                "menu items",
+                [
+                    "name",
+                    "title",
+                    "item"
+                ]
+            ),
+            "data": data
         }
 
 

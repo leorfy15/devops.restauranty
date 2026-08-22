@@ -12,7 +12,7 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.7.0"
+    version="1.8.0"
 )
 
 NAMESPACE = "restauranty"
@@ -318,12 +318,10 @@ def clean_log_line(line):
 
 def is_real_error_log(log):
     """
-    Final deterministic validation for application-error logs.
+    Deterministically validate application error logs.
 
-    Loki is used to retrieve recent Restauranty logs, but Python
-    decides whether an entry is a real application error. This
-    prevents values such as 0.500 ms or 500000.0 from being
-    misclassified as HTTP 500 errors.
+    This prevents harmless values such as 0.500 ms or 500000.0
+    from being misclassified as HTTP 500 errors.
     """
 
     line = clean_log_line(
@@ -332,11 +330,9 @@ def is_real_error_log(log):
 
     line_lower = line.lower()
 
-    # Requests to the assistant error endpoint are not themselves errors.
     if "/api/assistant/errors" in line_lower:
         return False
 
-    # Common explicit error/failure indicators.
     error_indicators = [
         "error:",
         "exception",
@@ -357,8 +353,6 @@ def is_real_error_log(log):
     ):
         return True
 
-    # Uvicorn / HTTP access log style:
-    # "GET /path HTTP/1.1" 500
     if re.search(
         r'HTTP/\d(?:\.\d)?[" ]+\s*5\d\d\b',
         line,
@@ -366,8 +360,6 @@ def is_real_error_log(log):
     ):
         return True
 
-    # Express / Morgan style:
-    # GET /path 500 12.3 ms
     if re.search(
         r'\b(?:GET|POST|PUT|PATCH|DELETE)\s+\S+\s+5\d\d\b',
         line,
@@ -375,7 +367,6 @@ def is_real_error_log(log):
     ):
         return True
 
-    # Generic structured status/statusCode field with a 5xx value.
     if re.search(
         r'\b(?:status|statuscode)\b[^0-9]{0,8}5\d\d\b',
         line,
@@ -387,10 +378,6 @@ def is_real_error_log(log):
 
 
 def get_recent_error_logs(minutes=30, limit=200):
-    """
-    Retrieve recent Restauranty logs from Loki and keep only
-    entries that Python deterministically classifies as errors.
-    """
 
     candidate_logs = query_loki(
         '{namespace="restauranty"}',
@@ -406,10 +393,6 @@ def get_recent_error_logs(minutes=30, limit=200):
 
 
 def build_error_summary(error_logs, cluster_summary, minutes=30):
-    """
-    Build a deterministic operational answer so raw log entries
-    are not freely reinterpreted by the language model.
-    """
 
     if not error_logs:
         return (
@@ -487,6 +470,188 @@ def build_error_summary(error_logs, cluster_summary, minutes=30):
         f"I found {len(error_logs)} recent application error "
         f"event(s) in the last {minutes} minutes. "
         f"{event_text}. {current_health}"
+    )
+
+
+# =========================================================
+# Cowrie security helpers
+# =========================================================
+
+def get_security_events(minutes=60, limit=200):
+
+    logs = query_loki(
+        (
+            '{namespace="honeypot", app="cowrie"} '
+            '|~ "login attempt|CMD:|New connection:"'
+        ),
+        minutes=minutes,
+        limit=limit
+    )
+
+    events = []
+
+    for log in logs:
+
+        line = clean_log_line(
+            log.get("line", "")
+        )
+
+        event_type = "other"
+
+        if "New connection:" in line:
+            event_type = "connection"
+
+        elif "login attempt" in line:
+            if "succeeded" in line.lower():
+                event_type = "login_success"
+            else:
+                event_type = "login_attempt"
+
+        elif "CMD:" in line:
+            event_type = "command"
+
+        source_ip = None
+
+        match = re.search(
+            r'(\d{1,3}(?:\.\d{1,3}){3})',
+            line
+        )
+
+        if match:
+            source_ip = match.group(1)
+
+        events.append({
+            **log,
+            "eventType": event_type,
+            "sourceIp": source_ip,
+            "cleanLine": line
+        })
+
+    return events
+
+
+def build_security_summary(events, minutes=60):
+
+    if not events:
+        return (
+            f"No honeypot security events were detected "
+            f"in the last {minutes} minutes."
+        )
+
+    connections = [
+        event
+        for event in events
+        if event["eventType"] == "connection"
+    ]
+
+    login_successes = [
+        event
+        for event in events
+        if event["eventType"] == "login_success"
+    ]
+
+    login_attempts = [
+        event
+        for event in events
+        if event["eventType"] == "login_attempt"
+    ]
+
+    commands = [
+        event
+        for event in events
+        if event["eventType"] == "command"
+    ]
+
+    source_ips = sorted({
+        event["sourceIp"]
+        for event in events
+        if event.get("sourceIp")
+    })
+
+    parts = [
+        (
+            f"{len(events)} honeypot security event(s) "
+            f"were detected in the last {minutes} minutes."
+        )
+    ]
+
+    if connections:
+        parts.append(
+            f"{len(connections)} connection attempt(s)."
+        )
+
+    if login_attempts:
+        parts.append(
+            f"{len(login_attempts)} failed or unsuccessful "
+            f"login attempt(s)."
+        )
+
+    if login_successes:
+        parts.append(
+            f"{len(login_successes)} successful honeypot login(s)."
+        )
+
+    if commands:
+        parts.append(
+            f"{len(commands)} attacker command event(s)."
+        )
+
+    if source_ips:
+        parts.append(
+            "Source IPs: "
+            + ", ".join(source_ips)
+            + "."
+        )
+
+    return " ".join(parts)
+
+
+def build_command_summary(events, minutes=60):
+
+    command_events = [
+        event
+        for event in events
+        if event["eventType"] == "command"
+    ]
+
+    if not command_events:
+        return (
+            f"No attacker commands were recorded "
+            f"in the last {minutes} minutes."
+        )
+
+    commands = []
+
+    for event in command_events:
+
+        line = event["cleanLine"]
+
+        if "CMD:" in line:
+            command = (
+                line.split(
+                    "CMD:",
+                    1
+                )[1]
+                .strip()
+            )
+
+            if command:
+                commands.append(command)
+
+    if not commands:
+        return (
+            f"{len(command_events)} attacker command event(s) "
+            f"were detected in the last {minutes} minutes."
+        )
+
+    unique_commands = list(
+        dict.fromkeys(commands)
+    )
+
+    return (
+        f"Attacker commands recorded in the last "
+        f"{minutes} minutes: "
+        + "; ".join(unique_commands)
     )
 
 
@@ -857,19 +1022,15 @@ def recent_errors():
 @app.get("/api/assistant/security")
 def security_events():
 
-    logs = query_loki(
-        (
-            '{namespace="honeypot", app="cowrie"} '
-            '|~ "login attempt|CMD:|New connection:"'
-        ),
+    events = get_security_events(
         minutes=60,
-        limit=100
+        limit=200
     )
 
     return {
         "timeRangeMinutes": 60,
-        "count": len(logs),
-        "logs": logs
+        "count": len(events),
+        "events": events
     }
 
 
@@ -893,6 +1054,7 @@ def model_chat(request: ChatRequest):
     question = request.message.strip()
 
     if not question:
+
         raise HTTPException(
             status_code=400,
             detail="Message cannot be empty"
@@ -958,7 +1120,7 @@ def model_chat(request: ChatRequest):
 
 
 # =========================================================
-# DevOps chat
+# DevOps Chat
 # =========================================================
 
 @app.post("/api/assistant/chat")
@@ -1188,6 +1350,61 @@ def chat(request: ChatRequest):
                 cluster_summary,
                 minutes=30
             )
+        }
+
+
+    # =====================================================
+    # Deterministic security answers
+    # =====================================================
+
+    security_question = any(
+        word in question_lower
+        for word in [
+            "honeypot",
+            "attack",
+            "attacks",
+            "attacker",
+            "attackers",
+            "ssh",
+            "security",
+            "cowrie"
+        ]
+    )
+
+    if security_question:
+
+        events = get_security_events(
+            minutes=60,
+            limit=200
+        )
+
+        command_question = any(
+            word in question_lower
+            for word in [
+                "command",
+                "commands",
+                "execute",
+                "executed"
+            ]
+        )
+
+        if command_question:
+            answer = build_command_summary(
+                events,
+                minutes=60
+            )
+        else:
+            answer = build_security_summary(
+                events,
+                minutes=60
+            )
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "logEventsUsed": len(events),
+            "metricsUsed": False,
+            "answer": answer
         }
 
 

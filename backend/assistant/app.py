@@ -1,6 +1,8 @@
 import os
 import time
 import re
+import uuid
+from datetime import datetime, timezone
 import requests
 
 from fastapi import FastAPI, HTTPException
@@ -12,10 +14,13 @@ from kubernetes.config.config_exception import ConfigException
 
 app = FastAPI(
     title="Restauranty AI Assistant",
-    version="1.9.0"
+    version="2.0.0"
 )
 
 NAMESPACE = "restauranty"
+
+PENDING_COUPON_ACTIONS = {}
+COUPON_ACTION_TTL_SECONDS = 600
 
 
 # =========================================================
@@ -78,6 +83,17 @@ DISCOUNTS_URL = os.getenv(
 
 class ChatRequest(BaseModel):
     message: str
+
+
+class CouponPrepareRequest(BaseModel):
+    name: str
+    discount: str
+    start: str
+    end: str
+
+
+class CouponConfirmRequest(BaseModel):
+    actionId: str
 
 
 # =========================================================
@@ -1071,6 +1087,117 @@ def summarize_named_collection(
 
 
 # =========================================================
+# Controlled coupon write helpers
+# =========================================================
+
+def validate_coupon_payload(payload):
+
+    name = payload.name.strip()
+    discount = payload.discount.strip()
+    start = payload.start.strip()
+    end = payload.end.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Coupon name is required"
+        )
+
+    if not discount:
+        raise HTTPException(
+            status_code=400,
+            detail="Coupon discount is required"
+        )
+
+    try:
+        discount_value = float(discount)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Coupon discount must be numeric"
+        )
+
+    if discount_value <= 0 or discount_value > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Coupon discount must be greater than 0 and at most 100"
+        )
+
+    try:
+        start_date = datetime.strptime(
+            start,
+            "%Y-%m-%d"
+        ).date()
+
+        end_date = datetime.strptime(
+            end,
+            "%Y-%m-%d"
+        ).date()
+
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Coupon start and end must use YYYY-MM-DD format"
+        )
+
+    if end_date < start_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Coupon end date cannot be before start date"
+        )
+
+    return {
+        "name": name,
+        "discount": discount,
+        "start": start,
+        "end": end
+    }
+
+
+def cleanup_expired_coupon_actions():
+
+    now = time.time()
+
+    expired = [
+        action_id
+        for action_id, action
+        in PENDING_COUPON_ACTIONS.items()
+        if action["expiresAtEpoch"] <= now
+    ]
+
+    for action_id in expired:
+        PENDING_COUPON_ACTIONS.pop(
+            action_id,
+            None
+        )
+
+
+def create_coupon_via_api(coupon):
+
+    try:
+
+        response = requests.post(
+            f"{DISCOUNTS_URL}/api/discounts/coupons",
+            json=coupon,
+            timeout=15
+        )
+
+        response.raise_for_status()
+
+        return response.json()
+
+    except requests.RequestException as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Coupon creation through the Discounts service failed: "
+                f"{str(exc)}"
+            )
+        )
+
+
+# =========================================================
 # Kubernetes API endpoints
 # =========================================================
 
@@ -1135,6 +1262,103 @@ def app_campaigns():
         "source": "discounts-service",
         "readOnly": True,
         "data": get_restauranty_campaigns()
+    }
+
+
+# =========================================================
+# Controlled coupon creation
+# =========================================================
+
+@app.post("/api/assistant/app/coupons/prepare")
+def prepare_coupon_creation(
+    request: CouponPrepareRequest
+):
+
+    cleanup_expired_coupon_actions()
+
+    coupon = validate_coupon_payload(
+        request
+    )
+
+    action_id = str(
+        uuid.uuid4()
+    )
+
+    created_at = time.time()
+    expires_at = (
+        created_at
+        + COUPON_ACTION_TTL_SECONDS
+    )
+
+    PENDING_COUPON_ACTIONS[
+        action_id
+    ] = {
+        "coupon": coupon,
+        "createdAtEpoch": created_at,
+        "expiresAtEpoch": expires_at
+    }
+
+    return {
+        "status": "confirmation_required",
+        "writePerformed": False,
+        "actionId": action_id,
+        "expiresInSeconds":
+            COUPON_ACTION_TTL_SECONDS,
+        "proposedAction": {
+            "method": "POST",
+            "service": "discounts",
+            "endpoint":
+                "/api/discounts/coupons",
+            "coupon": coupon
+        },
+        "message": (
+            "Coupon has NOT been created yet. "
+            "Confirm this action using the returned actionId."
+        )
+    }
+
+
+@app.post("/api/assistant/app/coupons/confirm")
+def confirm_coupon_creation(
+    request: CouponConfirmRequest
+):
+
+    cleanup_expired_coupon_actions()
+
+    action = PENDING_COUPON_ACTIONS.get(
+        request.actionId
+    )
+
+    if not action:
+
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Pending coupon action was not found "
+                "or has expired"
+            )
+        )
+
+    # Remove before executing so the same confirmation
+    # token cannot be reused.
+    PENDING_COUPON_ACTIONS.pop(
+        request.actionId,
+        None
+    )
+
+    created_coupon = (
+        create_coupon_via_api(
+            action["coupon"]
+        )
+    )
+
+    return {
+        "status": "created",
+        "writePerformed": True,
+        "service": "discounts",
+        "endpoint":
+            "/api/discounts/coupons",
+        "coupon": created_coupon
     }
 
 

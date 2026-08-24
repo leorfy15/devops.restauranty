@@ -12,6 +12,79 @@ function AssistantPage() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Stores the pending controlled action returned by the backend.
+  // We only use this for the coupon confirmation workflow.
+  const [pendingActionId, setPendingActionId] =
+    useState(null);
+
+  const addAssistantMessage = ({
+    text,
+    model = "deterministic",
+    source = null,
+  }) => {
+    setMessages((current) => [
+      ...current,
+      {
+        role: "assistant",
+        text,
+        model,
+        source,
+        mode,
+      },
+    ]);
+  };
+
+  const confirmPendingCoupon = async () => {
+    if (!pendingActionId) {
+      addAssistantMessage({
+        text:
+          "There is no pending coupon action to confirm.",
+        model: "deterministic",
+        source: "discounts-service",
+      });
+
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `${url}/api/assistant/app/coupons/confirm`,
+        {
+          actionId: pendingActionId,
+        }
+      );
+
+      const coupon =
+        response.data?.coupon || {};
+
+      addAssistantMessage({
+        text:
+          `Coupon "${coupon.name || "unknown"}" was created successfully. ` +
+          `Discount: ${coupon.discount || "unknown"}%. ` +
+          `Valid from ${coupon.start || "unknown"} ` +
+          `to ${coupon.end || "unknown"}.`,
+        model: "deterministic",
+        source: "discounts-service",
+      });
+
+      // The token is one-time use.
+      setPendingActionId(null);
+    } catch (error) {
+      console.error(
+        "Coupon confirmation failed:",
+        error
+      );
+
+      addAssistantMessage({
+        text:
+          error.response?.data?.detail ||
+          "Unable to confirm the coupon creation.",
+        model: "error",
+        source: "discounts-service",
+      });
+    }
+  };
+
   const sendMessage = async () => {
     const trimmedMessage = message.trim();
 
@@ -33,6 +106,37 @@ function AssistantPage() {
     setLoading(true);
 
     try {
+      // ===================================================
+      // Controlled confirmation
+      // ===================================================
+
+      const confirmationWords = [
+        "confirm",
+        "confirmed",
+        "yes",
+        "yes confirm",
+        "confirm it",
+        "create it",
+        "go ahead",
+        "proceed",
+      ];
+
+      const isConfirmation =
+        mode === "devops" &&
+        pendingActionId &&
+        confirmationWords.includes(
+          trimmedMessage.toLowerCase()
+        );
+
+      if (isConfirmation) {
+        await confirmPendingCoupon();
+        return;
+      }
+
+      // ===================================================
+      // Normal chat
+      // ===================================================
+
       const endpoint =
         mode === "devops"
           ? "/api/assistant/chat"
@@ -45,17 +149,36 @@ function AssistantPage() {
         }
       );
 
+      // ===================================================
+      // Controlled coupon preparation
+      // ===================================================
+
+      if (
+        response.data?.status ===
+          "confirmation_required" &&
+        response.data?.actionId
+      ) {
+        setPendingActionId(
+          response.data.actionId
+        );
+      }
+
       const assistantMessage = {
         role: "assistant",
+
         text:
           response.data.answer ||
+          response.data.message ||
           "The assistant returned no answer.",
+
         model:
           response.data.model ||
           "unknown",
+
         source:
           response.data.source ||
           null,
+
         mode,
       };
 
@@ -71,10 +194,15 @@ function AssistantPage() {
 
       const errorMessage = {
         role: "assistant",
+
         text:
           error.response?.data?.detail ||
           "Unable to contact the AI Assistant.",
+
         model: "error",
+
+        source: null,
+
         mode,
       };
 
@@ -99,6 +227,17 @@ function AssistantPage() {
 
   const clearChat = () => {
     setMessages([]);
+    setPendingActionId(null);
+  };
+
+  const changeMode = (newMode) => {
+    setMode(newMode);
+
+    // Do not carry a pending controlled action
+    // into Direct Llama mode.
+    if (newMode !== "devops") {
+      setPendingActionId(null);
+    }
   };
 
   return (
@@ -127,9 +266,10 @@ function AssistantPage() {
           <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-4">
 
             <div className="flex gap-2">
+
               <button
                 onClick={() =>
-                  setMode("devops")
+                  changeMode("devops")
                 }
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
                   mode === "devops"
@@ -142,7 +282,7 @@ function AssistantPage() {
 
               <button
                 onClick={() =>
-                  setMode("llama")
+                  changeMode("llama")
                 }
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
                   mode === "llama"
@@ -152,6 +292,7 @@ function AssistantPage() {
               >
                 Ask Llama
               </button>
+
             </div>
 
             <button
@@ -160,20 +301,38 @@ function AssistantPage() {
             >
               Clear chat
             </button>
+
           </div>
 
           <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
 
             {mode === "devops" ? (
-              <p className="text-sm text-slate-600">
-                <strong>DevOps mode:</strong>{" "}
-                uses live Kubernetes,
-                Prometheus, Loki, Cowrie and
-                Restauranty application APIs.
-              </p>
+              <div>
+                <p className="text-sm text-slate-600">
+                  <strong>
+                    DevOps mode:
+                  </strong>{" "}
+                  uses live Kubernetes,
+                  Prometheus, Loki, Cowrie and
+                  Restauranty application APIs.
+                </p>
+
+                {pendingActionId && (
+                  <p className="text-sm text-amber-700 mt-2 font-medium">
+                    A coupon creation is waiting
+                    for confirmation. Type
+                    {" "}
+                    <strong>confirm</strong>
+                    {" "}
+                    to continue.
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-slate-600">
-                <strong>Direct Llama mode:</strong>{" "}
+                <strong>
+                  Direct Llama mode:
+                </strong>{" "}
                 talk directly with the
                 llama3.2:1b model for general
                 questions and explanations.
@@ -186,6 +345,7 @@ function AssistantPage() {
 
             {messages.length === 0 && (
               <div className="h-full flex items-center justify-center">
+
                 <div className="text-center max-w-lg">
 
                   <MdSmartToy className="text-6xl text-slate-300 mx-auto mb-4" />
@@ -196,30 +356,45 @@ function AssistantPage() {
 
                   {mode === "devops" ? (
                     <div className="text-sm text-slate-500 space-y-1">
+
                       <p>
                         Try asking:
                       </p>
+
                       <p>
                         "Are all Restauranty pods healthy?"
                       </p>
+
                       <p>
                         "Which pod is using the most CPU?"
                       </p>
+
                       <p>
                         "Were there attacks on the honeypot?"
                       </p>
+
                       <p>
                         "How many menu items do we have?"
                       </p>
+
+                      <p>
+                        "Create a coupon called STUDENTS-20
+                        for 20% from 25 August 2026 until
+                        10 September 2026"
+                      </p>
+
                     </div>
                   ) : (
                     <div className="text-sm text-slate-500">
+
                       <p>
                         Try asking:
                       </p>
+
                       <p>
                         "Explain Kubernetes HPA in simple terms."
                       </p>
+
                     </div>
                   )}
 
@@ -238,6 +413,7 @@ function AssistantPage() {
                       : "justify-start"
                   }`}
                 >
+
                   <div
                     className={`max-w-[75%] rounded-2xl px-5 py-4 ${
                       chatMessage.role ===
@@ -246,6 +422,7 @@ function AssistantPage() {
                         : "bg-slate-100 text-slate-800"
                     }`}
                   >
+
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">
                       {chatMessage.text}
                     </p>
@@ -266,6 +443,7 @@ function AssistantPage() {
 
                       </div>
                     )}
+
                   </div>
                 </div>
               )
@@ -273,17 +451,20 @@ function AssistantPage() {
 
             {loading && (
               <div className="flex justify-start">
+
                 <div className="bg-slate-100 rounded-2xl px-5 py-4">
                   <p className="text-sm text-slate-500 animate-pulse">
                     Assistant is thinking...
                   </p>
                 </div>
+
               </div>
             )}
 
           </div>
 
           <div className="border-t border-slate-200 p-4">
+
             <div className="flex gap-3">
 
               <textarea
@@ -296,7 +477,10 @@ function AssistantPage() {
                 onKeyDown={handleKeyDown}
                 rows="2"
                 placeholder={
+                  pendingActionId &&
                   mode === "devops"
+                    ? 'Type "confirm" to create the coupon...'
+                    : mode === "devops"
                     ? "Ask about Restauranty or the infrastructure..."
                     : "Ask Llama anything..."
                 }
@@ -320,6 +504,7 @@ function AssistantPage() {
               Press Enter to send ·
               Shift + Enter for a new line
             </p>
+
           </div>
 
         </div>

@@ -255,7 +255,7 @@ function AssistantPage() {
 
               <p className="text-slate-500">
                 Ask questions about Restauranty,
-                Kubernetes and your infrastructure.
+                Kubernetes, security and your infrastructure.
               </p>
             </div>
           </div>

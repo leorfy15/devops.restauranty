@@ -56,3 +56,15 @@ __pycache__/
 
 # React build output
 client/build/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+
+# =========================
+# React build output
+# =========================
+client/build/

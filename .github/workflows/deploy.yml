@@ -6,10 +6,20 @@ on:
       - main
 
   workflow_dispatch:
+    inputs:
+      full_deploy:
+        description: "Build and deploy all Restauranty services"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   id-token: write
   contents: read
+
+concurrency:
+  group: restauranty-deploy-main
+  cancel-in-progress: false
 
 env:
   ACR_NAME: acrrestaurantytatiana
@@ -27,29 +37,211 @@ jobs:
       # Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # Detect changed components
+      - name: Detect changed paths
+        id: changes
+        shell: bash
+        run: |
+          set -e
+
+          AUTH_CODE=false
+          DISCOUNTS_CODE=false
+          ITEMS_CODE=false
+          ASSISTANT_CODE=false
+          CLIENT_CODE=false
+
+          AUTH_MANIFEST=false
+          DISCOUNTS_MANIFEST=false
+          ITEMS_MANIFEST=false
+          ASSISTANT_MANIFEST=false
+          CLIENT_MANIFEST=false
+
+          SHARED_K8S=false
+          FULL_DEPLOY=false
+
+          # Manual workflow: build and deploy everything
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && \
+             [[ "${{ inputs.full_deploy }}" == "true" ]]; then
+
+            echo "Manual full deployment requested."
+
+            FULL_DEPLOY=true
+
+            AUTH_CODE=true
+            DISCOUNTS_CODE=true
+            ITEMS_CODE=true
+            ASSISTANT_CODE=true
+            CLIENT_CODE=true
+
+            AUTH_MANIFEST=true
+            DISCOUNTS_MANIFEST=true
+            ITEMS_MANIFEST=true
+            ASSISTANT_MANIFEST=true
+            CLIENT_MANIFEST=true
+
+            SHARED_K8S=true
+
+          else
+
+            echo "Detecting files changed in latest push..."
+
+            if git rev-parse HEAD^ >/dev/null 2>&1; then
+              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+            else
+              CHANGED_FILES=$(git show --pretty="" --name-only HEAD)
+            fi
+
+            echo ""
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+            echo ""
+
+            if echo "$CHANGED_FILES" | grep -q '^backend/auth/'; then
+              AUTH_CODE=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^backend/discounts/'; then
+              DISCOUNTS_CODE=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^backend/items/'; then
+              ITEMS_CODE=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^backend/assistant/'; then
+              ASSISTANT_CODE=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^client/'; then
+              CLIENT_CODE=true
+            fi
+
+            # Individual Kubernetes manifests
+            if echo "$CHANGED_FILES" | grep -q '^kubernetes/auth.yaml$'; then
+              AUTH_MANIFEST=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^kubernetes/discounts.yaml$'; then
+              DISCOUNTS_MANIFEST=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^kubernetes/items.yaml$'; then
+              ITEMS_MANIFEST=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^kubernetes/assistant.yaml$'; then
+              ASSISTANT_MANIFEST=true
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q '^kubernetes/client.yaml$'; then
+              CLIENT_MANIFEST=true
+            fi
+
+            # Shared Kubernetes configuration
+            if echo "$CHANGED_FILES" | grep -Eq \
+              '^kubernetes/(hpa.yaml|ingress.yaml|secretproviderclass.yaml)$'; then
+              SHARED_K8S=true
+            fi
+
+          fi
+
+          # Determine whether ACR or AKS actions are required
+          ANY_CODE=false
+          ANY_DEPLOY=false
+
+          if [[ "$AUTH_CODE" == "true" ]] || \
+             [[ "$DISCOUNTS_CODE" == "true" ]] || \
+             [[ "$ITEMS_CODE" == "true" ]] || \
+             [[ "$ASSISTANT_CODE" == "true" ]] || \
+             [[ "$CLIENT_CODE" == "true" ]]; then
+
+            ANY_CODE=true
+          fi
+
+          if [[ "$ANY_CODE" == "true" ]] || \
+             [[ "$AUTH_MANIFEST" == "true" ]] || \
+             [[ "$DISCOUNTS_MANIFEST" == "true" ]] || \
+             [[ "$ITEMS_MANIFEST" == "true" ]] || \
+             [[ "$ASSISTANT_MANIFEST" == "true" ]] || \
+             [[ "$CLIENT_MANIFEST" == "true" ]] || \
+             [[ "$SHARED_K8S" == "true" ]]; then
+
+            ANY_DEPLOY=true
+          fi
+
+          # Export outputs
+          echo "auth_code=$AUTH_CODE" >> "$GITHUB_OUTPUT"
+          echo "discounts_code=$DISCOUNTS_CODE" >> "$GITHUB_OUTPUT"
+          echo "items_code=$ITEMS_CODE" >> "$GITHUB_OUTPUT"
+          echo "assistant_code=$ASSISTANT_CODE" >> "$GITHUB_OUTPUT"
+          echo "client_code=$CLIENT_CODE" >> "$GITHUB_OUTPUT"
+
+          echo "auth_manifest=$AUTH_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "discounts_manifest=$DISCOUNTS_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "items_manifest=$ITEMS_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "assistant_manifest=$ASSISTANT_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "client_manifest=$CLIENT_MANIFEST" >> "$GITHUB_OUTPUT"
+
+          echo "shared_k8s=$SHARED_K8S" >> "$GITHUB_OUTPUT"
+
+          echo "any_code=$ANY_CODE" >> "$GITHUB_OUTPUT"
+          echo "any_deploy=$ANY_DEPLOY" >> "$GITHUB_OUTPUT"
+          echo "full_deploy=$FULL_DEPLOY" >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "Restauranty change detection"
+          echo "Auth code:        $AUTH_CODE"
+          echo "Discounts code:   $DISCOUNTS_CODE"
+          echo "Items code:       $ITEMS_CODE"
+          echo "Assistant code:   $ASSISTANT_CODE"
+          echo "Client code:      $CLIENT_CODE"
+          echo ""
+          echo "Auth manifest:      $AUTH_MANIFEST"
+          echo "Discounts manifest: $DISCOUNTS_MANIFEST"
+          echo "Items manifest:     $ITEMS_MANIFEST"
+          echo "Assistant manifest: $ASSISTANT_MANIFEST"
+          echo "Client manifest:    $CLIENT_MANIFEST"
+          echo ""
+          echo "Shared K8s:       $SHARED_K8S"
+          echo "Any code build:   $ANY_CODE"
+          echo "Any deployment:   $ANY_DEPLOY"
+          echo "Full deployment:  $FULL_DEPLOY"
+
+      # Nothing relevant changed
+      - name: No deployment required
+        if: steps.changes.outputs.any_deploy != 'true'
+        run: |
+          echo "No Restauranty application or Kubernetes changes detected."
+          echo "Skipping image builds, Trivy scans, ACR pushes and AKS deployments."
 
       # Azure authentication
       - name: Azure login using OIDC
+        if: steps.changes.outputs.any_deploy == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # ACR login
+      # ACR authentication
       - name: Login to Azure Container Registry
+        if: steps.changes.outputs.any_code == 'true'
         run: |
           az acr login --name $ACR_NAME
 
       # Image tag
       - name: Set image tag
+        if: steps.changes.outputs.any_code == 'true'
         run: |
-          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
           echo "Image tag: ${GITHUB_SHA::7}"
-
 
       # Auth
       - name: Build Auth image
+        if: steps.changes.outputs.auth_code == 'true'
         run: |
           docker build \
             --platform linux/amd64 \
@@ -57,6 +249,7 @@ jobs:
             ./backend/auth
 
       - name: Scan Auth image with Trivy
+        if: steps.changes.outputs.auth_code == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ env.ACR_LOGIN_SERVER }}/restauranty-auth:${{ env.IMAGE_TAG }}'
@@ -67,13 +260,14 @@ jobs:
           severity: 'HIGH,CRITICAL'
 
       - name: Push Auth image
+        if: steps.changes.outputs.auth_code == 'true'
         run: |
           docker push \
             $ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG
 
-
       # Discounts
       - name: Build Discounts image
+        if: steps.changes.outputs.discounts_code == 'true'
         run: |
           docker build \
             --platform linux/amd64 \
@@ -81,6 +275,7 @@ jobs:
             ./backend/discounts
 
       - name: Scan Discounts image with Trivy
+        if: steps.changes.outputs.discounts_code == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ env.ACR_LOGIN_SERVER }}/restauranty-discounts:${{ env.IMAGE_TAG }}'
@@ -91,13 +286,14 @@ jobs:
           severity: 'HIGH,CRITICAL'
 
       - name: Push Discounts image
+        if: steps.changes.outputs.discounts_code == 'true'
         run: |
           docker push \
             $ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG
 
-
       # Items
       - name: Build Items image
+        if: steps.changes.outputs.items_code == 'true'
         run: |
           docker build \
             --platform linux/amd64 \
@@ -105,6 +301,7 @@ jobs:
             ./backend/items
 
       - name: Scan Items image with Trivy
+        if: steps.changes.outputs.items_code == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ env.ACR_LOGIN_SERVER }}/restauranty-items:${{ env.IMAGE_TAG }}'
@@ -115,17 +312,19 @@ jobs:
           severity: 'HIGH,CRITICAL'
 
       - name: Push Items image
+        if: steps.changes.outputs.items_code == 'true'
         run: |
           docker push \
             $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG
 
-
       # Assistant
       - name: Check Assistant Python syntax
+        if: steps.changes.outputs.assistant_code == 'true'
         run: |
           python3 -m py_compile backend/assistant/app.py
 
       - name: Build Assistant image
+        if: steps.changes.outputs.assistant_code == 'true'
         run: |
           docker build \
             --platform linux/amd64 \
@@ -135,6 +334,7 @@ jobs:
             ./backend/assistant
 
       - name: Scan Assistant image with Trivy
+        if: steps.changes.outputs.assistant_code == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ env.ACR_LOGIN_SERVER }}/restauranty-assistant:${{ env.IMAGE_TAG }}'
@@ -145,13 +345,14 @@ jobs:
           severity: 'HIGH,CRITICAL'
 
       - name: Push Assistant image
+        if: steps.changes.outputs.assistant_code == 'true'
         run: |
           docker push \
             $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG
 
-
       # Client
       - name: Build Client image
+        if: steps.changes.outputs.client_code == 'true'
         run: |
           docker build \
             --platform linux/amd64 \
@@ -159,6 +360,7 @@ jobs:
             ./client
 
       - name: Scan Client image with Trivy
+        if: steps.changes.outputs.client_code == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ env.ACR_LOGIN_SERVER }}/restauranty-client:${{ env.IMAGE_TAG }}'
@@ -169,54 +371,69 @@ jobs:
           severity: 'HIGH,CRITICAL'
 
       - name: Push Client image
+        if: steps.changes.outputs.client_code == 'true'
         run: |
           docker push \
             $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG
 
-
       # AKS authentication
       - name: Get AKS credentials
+        if: steps.changes.outputs.any_deploy == 'true'
         run: |
           az aks get-credentials \
             --resource-group $RESOURCE_GROUP \
             --name $AKS_CLUSTER \
             --overwrite-existing
 
-
-      # Set image tags in manifests
-      - name: Set Kubernetes image tags
+      # Set image tags only for rebuilt images
+      - name: Set Auth image tag
+        if: steps.changes.outputs.auth_code == 'true'
         run: |
           sed -i \
             "s|image: $ACR_LOGIN_SERVER/restauranty-auth:.*|image: $ACR_LOGIN_SERVER/restauranty-auth:$IMAGE_TAG|" \
             kubernetes/auth.yaml
 
+      - name: Set Discounts image tag
+        if: steps.changes.outputs.discounts_code == 'true'
+        run: |
           sed -i \
             "s|image: $ACR_LOGIN_SERVER/restauranty-discounts:.*|image: $ACR_LOGIN_SERVER/restauranty-discounts:$IMAGE_TAG|" \
             kubernetes/discounts.yaml
 
+      - name: Set Items image tag
+        if: steps.changes.outputs.items_code == 'true'
+        run: |
           sed -i \
             "s|image: $ACR_LOGIN_SERVER/restauranty-items:.*|image: $ACR_LOGIN_SERVER/restauranty-items:$IMAGE_TAG|" \
             kubernetes/items.yaml
 
+      - name: Set Assistant image tag
+        if: steps.changes.outputs.assistant_code == 'true'
+        run: |
           sed -i \
             "s|image: $ACR_LOGIN_SERVER/restauranty-assistant:.*|image: $ACR_LOGIN_SERVER/restauranty-assistant:$IMAGE_TAG|" \
             kubernetes/assistant.yaml
 
+      - name: Set Client image tag
+        if: steps.changes.outputs.client_code == 'true'
+        run: |
           sed -i \
             "s|image: $ACR_LOGIN_SERVER/restauranty-client:.*|image: $ACR_LOGIN_SERVER/restauranty-client:$IMAGE_TAG|" \
             kubernetes/client.yaml
 
-
       # Shared Kubernetes configuration
       - name: Apply shared Kubernetes configuration
+        if: steps.changes.outputs.shared_k8s == 'true'
         run: |
           if [ -f kubernetes/secretproviderclass.yaml ]; then
             kubectl apply -f kubernetes/secretproviderclass.yaml
           fi
 
-
       # Deploy Auth
       - name: Deploy Auth
+        if: |
+          steps.changes.outputs.auth_code == 'true' ||
+          steps.changes.outputs.auth_manifest == 'true'
         run: |
           kubectl apply -f kubernetes/auth.yaml
 
@@ -224,9 +441,11 @@ jobs:
             -n $NAMESPACE \
             --timeout=300s
 
-
       # Deploy Discounts
       - name: Deploy Discounts
+        if: |
+          steps.changes.outputs.discounts_code == 'true' ||
+          steps.changes.outputs.discounts_manifest == 'true'
         run: |
           kubectl apply -f kubernetes/discounts.yaml
 
@@ -234,9 +453,11 @@ jobs:
             -n $NAMESPACE \
             --timeout=300s
 
-
       # Deploy Items
       - name: Deploy Items
+        if: |
+          steps.changes.outputs.items_code == 'true' ||
+          steps.changes.outputs.items_manifest == 'true'
         run: |
           kubectl apply -f kubernetes/items.yaml
 
@@ -244,9 +465,11 @@ jobs:
             -n $NAMESPACE \
             --timeout=300s
 
-
       # Deploy Assistant
       - name: Deploy Assistant
+        if: |
+          steps.changes.outputs.assistant_code == 'true' ||
+          steps.changes.outputs.assistant_manifest == 'true'
         run: |
           kubectl apply -f kubernetes/assistant.yaml
 
@@ -254,9 +477,11 @@ jobs:
             -n $NAMESPACE \
             --timeout=300s
 
-
       # Deploy Client
       - name: Deploy Client
+        if: |
+          steps.changes.outputs.client_code == 'true' ||
+          steps.changes.outputs.client_manifest == 'true'
         run: |
           kubectl apply -f kubernetes/client.yaml
 
@@ -264,21 +489,23 @@ jobs:
             -n $NAMESPACE \
             --timeout=300s
 
-
       # HPA and Ingress
       - name: Apply HPA and Ingress
+        if: steps.changes.outputs.shared_k8s == 'true'
         run: |
           if [ -f kubernetes/hpa.yaml ]; then
             kubectl apply -f kubernetes/hpa.yaml
           fi
 
-          kubectl apply -f kubernetes/ingress.yaml
-
+          if [ -f kubernetes/ingress.yaml ]; then
+            kubectl apply -f kubernetes/ingress.yaml
+          fi
 
       # Verify deployed images
       - name: Verify deployed images
+        if: steps.changes.outputs.any_deploy == 'true'
         run: |
-          echo "Deployed Restauranty images:"
+          echo "Restauranty deployment images:"
 
           kubectl get deployment \
             restauranty-auth \
@@ -289,10 +516,13 @@ jobs:
             -n $NAMESPACE \
             -o 'custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
 
-
       # Final status
       - name: Show deployment status
+        if: steps.changes.outputs.any_deploy == 'true'
         run: |
+          echo ""
+          echo "RESTAURANTY DEPLOYMENT STATUS"
+
           echo ""
           echo "PODS"
           kubectl get pods -n $NAMESPACE
@@ -307,12 +537,7 @@ jobs:
 
           echo ""
           echo "INGRESS"
-          kubectl get ingress -n $NAMESPACE
+          kubectl get ingress -n $NAMESPACE || true
 
           echo ""
-          echo "AI ASSISTANT"
-          kubectl get deployment restauranty-assistant \
-            -n $NAMESPACE
-
-          kubectl get svc assistant \
-            -n $NAMESPACE
+          echo "Deployment verification complete"

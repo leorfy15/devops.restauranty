@@ -41,8 +41,11 @@ build
 **/.terraform/*
 *.tfstate
 *.tfstate.*
+*.tfvars
+*.tfvars.json
 crash.log
 crash.*.log
+
 
 # =========================
 # OS
@@ -68,3 +71,4 @@ __pycache__/
 # React build output
 # =========================
 client/build/
+credential.json

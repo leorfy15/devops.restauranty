@@ -48,3 +48,11 @@ crash.*.log
 # OS
 # =========================
 .DS_Store
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# React build output
+client/build/

@@ -1195,7 +1195,227 @@ def create_coupon_via_api(coupon):
                 f"{str(exc)}"
             )
         )
+        # =========================================================
+# Natural-language coupon creation helpers
+# =========================================================
 
+def extract_coupon_from_question(question):
+    """
+    Extract coupon information from a natural-language request.
+
+    Example:
+    Create a new coupon called DEMO-10 for 10%
+    from 24 August until 1 September 2026
+    """
+
+    question = question.strip()
+
+    # -----------------------------------------------------
+    # Coupon name
+    # -----------------------------------------------------
+
+    name_match = re.search(
+        r'(?:called|named|code)\s+["\']?([A-Za-z0-9_-]+)["\']?',
+        question,
+        re.IGNORECASE
+    )
+
+    name = (
+        name_match.group(1)
+        if name_match
+        else None
+    )
+
+
+    # -----------------------------------------------------
+    # Discount percentage
+    # -----------------------------------------------------
+
+    discount_match = re.search(
+        r'(\d+(?:\.\d+)?)\s*%',
+        question
+    )
+
+    discount = (
+        discount_match.group(1)
+        if discount_match
+        else None
+    )
+
+
+    # -----------------------------------------------------
+    # Dates
+    # -----------------------------------------------------
+
+    date_pattern = (
+        r'(\d{1,2}\s+'
+        r'(?:January|February|March|April|May|June|'
+        r'July|August|September|October|November|December)'
+        r'(?:\s+\d{4})?)'
+    )
+
+    date_matches = re.findall(
+        date_pattern,
+        question,
+        re.IGNORECASE
+    )
+
+    start = None
+    end = None
+
+    if len(date_matches) >= 2:
+
+        current_year = datetime.now().year
+
+        def parse_natural_date(value):
+
+            value = value.strip()
+
+            # Date already contains a year
+            if re.search(
+                r'\b\d{4}\b',
+                value
+            ):
+                parsed = datetime.strptime(
+                    value,
+                    "%d %B %Y"
+                )
+
+            else:
+                parsed = datetime.strptime(
+                    f"{value} {current_year}",
+                    "%d %B %Y"
+                )
+
+            return parsed.strftime(
+                "%Y-%m-%d"
+            )
+
+        try:
+
+            start = parse_natural_date(
+                date_matches[0]
+            )
+
+            end = parse_natural_date(
+                date_matches[1]
+            )
+
+        except ValueError:
+            pass
+
+
+    # -----------------------------------------------------
+    # Return extracted values
+    # -----------------------------------------------------
+
+    return {
+        "name": name,
+        "discount": discount,
+        "start": start,
+        "end": end
+    }
+
+
+def prepare_coupon_from_chat(question):
+    """
+    Prepare a controlled coupon write from a natural-language
+    chat request. No write is performed here.
+    """
+
+    extracted = extract_coupon_from_question(
+        question
+    )
+
+    missing = [
+        field
+        for field in [
+            "name",
+            "discount",
+            "start",
+            "end"
+        ]
+        if not extracted.get(field)
+    ]
+
+    if missing:
+
+        return {
+            "status": "information_required",
+            "writePerformed": False,
+            "missingFields": missing,
+            "answer": (
+                "I can prepare the coupon, but I still need: "
+                + ", ".join(missing)
+                + ". "
+                "Example: Create coupon DEMO-10 for 10% "
+                "from 24 August 2026 until 1 September 2026."
+            )
+        }
+
+
+    # Reuse the existing validated request model
+    payload = CouponPrepareRequest(
+        name=extracted["name"],
+        discount=extracted["discount"],
+        start=extracted["start"],
+        end=extracted["end"]
+    )
+
+    coupon = validate_coupon_payload(
+        payload
+    )
+
+
+    # Remove expired confirmation requests first
+    cleanup_expired_coupon_actions()
+
+
+    # Create one-time confirmation action
+    action_id = str(
+        uuid.uuid4()
+    )
+
+    created_at = time.time()
+
+    expires_at = (
+        created_at
+        + COUPON_ACTION_TTL_SECONDS
+    )
+
+    PENDING_COUPON_ACTIONS[
+        action_id
+    ] = {
+        "coupon": coupon,
+        "createdAtEpoch": created_at,
+        "expiresAtEpoch": expires_at
+    }
+
+
+    return {
+        "status": "confirmation_required",
+        "writePerformed": False,
+        "actionId": action_id,
+        "expiresInSeconds":
+            COUPON_ACTION_TTL_SECONDS,
+
+        "proposedAction": {
+            "method": "POST",
+            "service": "discounts",
+            "endpoint":
+                "/api/discounts/coupons",
+            "coupon": coupon
+        },
+
+        "answer": (
+            f'I prepared coupon "{coupon["name"]}" '
+            f'with a {coupon["discount"]}% discount, '
+            f'valid from {coupon["start"]} '
+            f'to {coupon["end"]}. '
+            f'It has NOT been created yet. '
+            f'Confirmation is required.'
+        )
+    }
 
 # =========================================================
 # Kubernetes API endpoints
@@ -1550,7 +1770,44 @@ def chat(request: ChatRequest):
 
     question_lower = question.lower()
 
+    # =====================================================
+    # Controlled Restauranty application write intents
+    # =====================================================
 
+    coupon_create_question = (
+        (
+            "coupon" in question_lower
+            or "coupons" in question_lower
+            or "voucher" in question_lower
+            or "vouchers" in question_lower
+        )
+        and any(
+            word in question_lower
+            for word in [
+                "create",
+                "add",
+                "make",
+                "new"
+            ]
+        )
+    )
+
+
+    if coupon_create_question:
+
+        prepared = prepare_coupon_from_chat(
+            question
+        )
+
+        return {
+            "question": question,
+            "model": "deterministic",
+            "source": "discounts-service",
+            "readOnly": False,
+            "logEventsUsed": 0,
+            "metricsUsed": False,
+            **prepared
+        }
     # =====================================================
     # Deterministic metric answers
     # =====================================================

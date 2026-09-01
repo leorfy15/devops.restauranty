@@ -5,8 +5,8 @@
   --accent-pale: #f6effa;
   --bg: #faf7fc;
   --white: #ffffff;
-  --text: #2a2233;
-  --text-secondary: #6f6480;
+  --text: #3a3145;
+  --text-secondary: #746a86;
   --border: #e7dfee;
   --accent-green: #4c9a72;
   --radius: 8px;
@@ -29,7 +29,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  line-height: 1.65;
 }
 
 a {
@@ -355,7 +355,7 @@ img {
 
 /* Sections */
 section {
-  padding: 40px 0;
+  padding: 48px 0;
 }
 
 .card {
@@ -379,15 +379,16 @@ section {
 
 /* oversized outline section marker, in the spirit of a bold portfolio wordmark */
 .kicker {
-  font-size: clamp(2.6rem, 8vw, 5.5rem);
+  font-size: clamp(2.4rem, 7vw, 5rem);
   font-weight: 800;
-  line-height: 0.88;
+  line-height: 0.9;
   letter-spacing: -0.01em;
   text-transform: uppercase;
   margin: 0 0 6px;
   padding-left: 4px;
   color: var(--accent-light);
-  -webkit-text-stroke: 1.5px var(--accent);
+  -webkit-text-stroke: 1.1px var(--accent);
+  opacity: 0.85;
   user-select: none;
 }
 
@@ -714,6 +715,64 @@ section {
 
 .badge .ico {
   color: var(--accent);
+}
+
+/* Recommendation */
+.testimonial-card {
+  text-align: center;
+  padding: 44px 40px;
+  position: relative;
+}
+
+.quote-mark {
+  display: block;
+  font-size: 4rem;
+  line-height: 1;
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--accent-light);
+  margin-bottom: -8px;
+}
+
+.testimonial-text {
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--text);
+  max-width: 640px;
+  margin: 0 auto 20px;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.testimonial-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: var(--white);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.testimonial-name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.testimonial-role {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-align: left;
 }
 
 /* Contact / footer */

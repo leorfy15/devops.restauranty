@@ -25,11 +25,78 @@ html {
 }
 
 body {
+  position: relative;
   margin: 0;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.65;
+  animation: pageFadeIn 0.5s ease;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    animation: none;
+  }
+}
+
+/* Decorative flowers scattered in the page margins */
+.page-florals {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.p-flower {
+  position: absolute;
+  animation-name: flowerSway;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.p-flower ellipse {
+  fill: #ffffff;
+  stroke: var(--accent-dark);
+  stroke-width: 1.4;
+  opacity: 0.85;
+}
+
+.p-flower circle {
+  fill: var(--accent-dark);
+  opacity: 0.9;
+}
+
+@keyframes flowerSway {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--r, 0deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(calc(var(--r, 0deg) + 6deg));
+  }
+}
+
+@media (max-width: 1180px) {
+  .page-florals {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-flower {
+    animation: none;
+  }
 }
 
 a {
@@ -43,6 +110,8 @@ img {
 }
 
 .wrap {
+  position: relative;
+  z-index: 1;
   max-width: var(--max-width);
   margin: 0 auto;
   padding: 0 24px;
@@ -318,6 +387,12 @@ section {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 28px 32px;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 
 .section-title {
@@ -799,6 +874,8 @@ section {
 }
 
 footer.site-footer {
+  position: relative;
+  z-index: 1;
   text-align: center;
   padding: 24px;
   color: var(--text-secondary);

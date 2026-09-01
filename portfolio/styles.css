@@ -185,35 +185,42 @@ img {
   font-size: 0.6rem;
 }
 
-.banner-chips {
+.tool-row {
   display: flex;
-  gap: 8px;
+  align-items: stretch;
   flex-wrap: wrap;
-  max-width: 420px;
+  row-gap: 10px;
+  max-width: 460px;
   justify-content: flex-end;
 }
 
-.brand-chip {
-  display: inline-flex;
+.tool-item {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--white);
-  box-shadow: 0 1px 2px rgba(91, 58, 135, 0.15);
-  white-space: nowrap;
+  gap: 4px;
+  padding: 0 12px;
+  border-left: 1px solid rgba(124, 79, 160, 0.18);
 }
 
-.brand-chip.azure { color: #0078d4; }
-.brand-chip.aws { color: #b46a00; }
-.brand-chip.k8s { color: #326ce5; }
-.brand-chip.docker { color: #1d7cc4; }
-.brand-chip.terraform { color: #7b42bc; }
-.brand-chip.cicd { color: var(--accent-dark); }
-.brand-chip.prometheus { color: #d6491f; }
-.brand-chip.grafana { color: #cc5a00; }
-.brand-chip.linux { color: #333333; }
+.tool-item:first-child {
+  border-left: none;
+}
+
+.tool-item svg {
+  width: 24px;
+  height: 24px;
+  color: var(--accent-dark);
+}
+
+.tool-item span {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7a6d90;
+  white-space: nowrap;
+}
 
 @media (max-width: 760px) {
   .banner {
@@ -225,9 +232,12 @@ img {
   .banner-title {
     font-size: 1.05rem;
   }
-  .banner-chips {
+  .tool-row {
     max-width: none;
     justify-content: flex-start;
+  }
+  .tool-item {
+    padding: 0 8px;
   }
 }
 
@@ -235,7 +245,7 @@ img {
   background: var(--white);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   box-shadow: var(--shadow);
-  padding: 0 32px 28px;
+  padding: 1px 32px 28px;
   position: relative;
 }
 
@@ -711,14 +721,14 @@ footer.site-footer {
   }
 
   .profile-card {
-    padding: 0 20px 24px;
+    padding: 1px 20px 24px;
   }
 
   .avatar {
     width: 110px;
     height: 110px;
     font-size: 2.2rem;
-    margin-top: -55px;
+    margin-top: 16px;
   }
 
   .profile-main {

@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tatiana Tudor — Junior DevOps Engineer</title>
+<meta name="description" content="Portfolio of Tatiana Tudor, Junior DevOps Engineer — Azure AKS, AWS EKS, Kubernetes, Terraform, CI/CD, observability and security projects." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%237c4fa0%22/><text x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22Arial%22>T</text></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="#top"><span class="dot"></span>Tatiana Tudor</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#about">About</a></li>
+      <li><a href="#skills">Skills</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#experience">Experience</a></li>
+      <li><a href="#education">Education</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div id="top" class="wrap hero">
+  <div class="banner">
+    <svg class="banner-florals" viewBox="0 0 800 190" preserveAspectRatio="xMinYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="#c9a9d9" stroke-width="1.4" opacity="0.55">
+        <path d="M10 190 C 30 140, 20 90, 55 40 C 65 25, 75 15, 90 5"/>
+        <path d="M55 60 C 40 55, 28 45, 22 30"/>
+        <path d="M65 85 C 48 82, 34 74, 26 60"/>
+        <path d="M78 45 C 92 40, 102 30, 106 16"/>
+        <path d="M45 110 C 28 108, 14 100, 6 88"/>
+        <ellipse cx="18" cy="28" rx="7" ry="4" transform="rotate(-30 18 28)"/>
+        <ellipse cx="100" cy="14" rx="7" ry="4" transform="rotate(20 100 14)"/>
+        <ellipse cx="22" cy="58" rx="7" ry="4" transform="rotate(-10 22 58)"/>
+        <ellipse cx="8" cy="86" rx="7" ry="4" transform="rotate(-40 8 86)"/>
+        <circle cx="92" cy="6" r="3"/>
+        <circle cx="16" cy="26" r="3"/>
+      </g>
+      <g fill="none" stroke="#d9c2e8" stroke-width="1" opacity="0.4">
+        <path d="M760 0 C 745 30, 750 55, 730 80"/>
+        <path d="M735 20 C 748 16, 758 8, 762 -2"/>
+        <ellipse cx="742" cy="14" rx="6" ry="3.5" transform="rotate(15 742 14)"/>
+      </g>
+    </svg>
+    <div class="banner-content">
+      <div class="banner-brand">
+        <h2 class="banner-title">DEVOPS &amp; CLOUD ENGINEER</h2>
+        <p class="banner-tagline"><span class="diamond">&#9670;</span> AUTOMATE &bull; DEPLOY &bull; MONITOR &bull; OPTIMIZE</p>
+      </div>
+      <div class="tool-row" aria-label="Core tools: Azure, AWS, Kubernetes, Docker, Terraform, CI/CD, Prometheus, Grafana, Linux">
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20a4.5 4.5 0 01-.5-9 6 6 0 0111.3-2.6A4.5 4.5 0 0119 20H9z"/><path d="M11 15.5c0-1.4 1.1-2.2 2-1.3.9-1 2-.2 2 1.3s-1.1 2.2-2 1.3c-.9.9-2 .1-2-1.3z"/></svg>
+          <span>Azure</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><text x="14" y="15" font-size="9" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none" font-family="Arial, sans-serif">aws</text><path d="M7 19q7 4 14 0"/><path d="M19 18.3l2 .7-.7 2"/></svg>
+          <span>AWS</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="14" cy="14" r="9"/><circle cx="14" cy="14" r="2.3"/><path d="M14 5v6.7M22.8 11.3l-6 3.9M19.8 22.5l-3.4-6.1M8.2 22.5l3.4-6.1M5.2 11.3l6 3.9"/></svg>
+          <span>Kubernetes</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="5" y="13" width="4.5" height="4.5"/><rect x="10.5" y="13" width="4.5" height="4.5"/><rect x="16" y="13" width="4.5" height="4.5"/><rect x="10.5" y="7.5" width="4.5" height="4.5"/><path d="M3 18.5c2 3 6.5 4.5 12 4.5s9.5-1.8 11-4.5"/></svg>
+          <span>Docker</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="6" y="6" width="6" height="6" transform="rotate(20 9 9)"/><rect x="16" y="6" width="6" height="6" transform="rotate(20 19 9)"/><rect x="11" y="16" width="6" height="6" transform="rotate(20 14 19)"/></svg>
+          <span>Terraform</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 14c0-2.5 2-4.3 4-2.3s2 2.3 4 2.3c2-2 4-.2 4 2.3s-2 4.3-4 2.3-2-2.3-4-2.3c-2 2-4 .2-4-2.3z"/></svg>
+          <span>CI/CD</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5c3.2 3.8 5.5 6.6 5.5 10.3a5.5 5.5 0 01-11 0c0-1.7.7-2.9 1.6-3.9-.2 1.6.6 2.2 1.2 1.4.6-.9-.4-2.1.1-3.4.6 1 1.7 1.1 2.1-.4.4-1.6-.6-2.4.5-4z"/></svg>
+          <span>Prometheus</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M20 10a6.5 6.5 0 10-6 9.9 4.3 4.3 0 108-2.1"/><circle cx="14" cy="14" r="1.4" fill="currentColor" stroke="none"/></svg>
+          <span>Grafana</span>
+        </div>
+        <div class="tool-item">
+          <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="9.5" r="3"/><ellipse cx="14" cy="17.5" rx="5.5" ry="6.5"/><path d="M11 21c0 1 .8 2 2 2M17 21c0 1-.8 2-2 2"/><circle cx="12.3" cy="9" r="0.5" fill="currentColor" stroke="none"/><circle cx="15.7" cy="9" r="0.5" fill="currentColor" stroke="none"/></svg>
+          <span>Linux</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="profile-card">
+    <div class="avatar" aria-hidden="true">TT</div>
+    <div class="profile-main">
+      <div>
+        <h1 class="profile-name">Tatiana Tudor</h1>
+        <p class="profile-headline">Junior DevOps Engineer &middot; Azure &amp; AWS &middot; Kubernetes &middot; Terraform &middot; CI/CD</p>
+        <p class="profile-meta"><span class="status-dot"></span> Tilburg, Netherlands &middot; Open to Junior DevOps opportunities</p>
+      </div>
+      <div class="profile-actions">
+        <a class="btn btn-primary" href="mailto:tatianatudor@icloud.com">Email me</a>
+        <a class="btn btn-outline" href="https://github.com/Leorfy15" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn btn-outline" href="assets/Tatiana-Tudor-CV.pdf" target="_blank" rel="noopener">Download CV</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="about">
+    <div class="card">
+      <h2 class="section-title">About</h2>
+      <div class="about-text">
+        <p>Junior DevOps Engineer completing an intensive DevOps Engineering Bootcamp, with hands-on experience designing, deploying and troubleshooting cloud-native environments across Microsoft Azure and AWS.</p>
+        <p>Experienced with Kubernetes, Docker, Terraform, CI/CD, monitoring and cloud infrastructure through production-style projects on AKS and EKS. Currently building Azure-based DevOps leadership experience from a supervisory role at DHL Freight — including team management, incident resolution, process optimization and roughly a 10% operational cost reduction.</p>
+        <p>Career transition in progress: from leading transport and fleet operations to building and operating cloud-native infrastructure, with the same underlying skill — keeping a complex, time-critical system running and improving it deliberately.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="skills">
+    <div class="card">
+      <h2 class="section-title">Skills</h2>
+      <div class="skills-grid">
+        <div class="skill-group">
+          <h3>Cloud</h3>
+          <div class="pill-row">
+            <span class="pill">Azure AKS</span><span class="pill">ACR</span><span class="pill">Azure VMs</span>
+            <span class="pill">Entra ID / OIDC</span><span class="pill">AWS EKS</span><span class="pill">EC2</span>
+            <span class="pill">VPC</span><span class="pill">IAM</span><span class="pill">S3</span>
+            <span class="pill">DynamoDB</span><span class="pill">Route 53</span><span class="pill">ECR</span>
+            <span class="pill">CloudFront</span><span class="pill">ALB</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <h3>Infrastructure as Code</h3>
+          <div class="pill-row"><span class="pill">Terraform</span></div>
+        </div>
+        <div class="skill-group">
+          <h3>Containers &amp; Kubernetes</h3>
+          <div class="pill-row">
+            <span class="pill">Docker</span><span class="pill">Kubernetes</span><span class="pill">Helm</span>
+            <span class="pill">NGINX Ingress</span><span class="pill">HPA</span><span class="pill">Metrics Server</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <h3>CI/CD &amp; Automation</h3>
+          <div class="pill-row">
+            <span class="pill">GitHub Actions</span><span class="pill">Azure OIDC</span>
+            <span class="pill">Ansible</span><span class="pill">Bash</span><span class="pill">Python</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <h3>Observability</h3>
+          <div class="pill-row">
+            <span class="pill">Prometheus</span><span class="pill">Grafana</span>
+            <span class="pill">Loki</span><span class="pill">Grafana Alloy</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <h3>Security</h3>
+          <div class="pill-row">
+            <span class="pill">Trivy</span><span class="pill">Cowrie Honeypot</span>
+            <span class="pill">Kubernetes Secrets</span><span class="pill">TLS / SSL</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <h3>Data &amp; Tools</h3>
+          <div class="pill-row">
+            <span class="pill">MongoDB</span><span class="pill">PostgreSQL</span><span class="pill">Redis</span>
+            <span class="pill">Git &amp; GitHub</span><span class="pill">kubectl</span>
+            <span class="pill">Azure CLI</span><span class="pill">AWS CLI</span><span class="pill">Linux</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects">
+    <h2 class="section-title" style="padding-left:4px;">Projects</h2>
+    <p class="section-lead" style="padding-left:4px;">Two production-style DevOps builds from the Ironhack bootcamp — one on Azure AKS, one on AWS EKS.</p>
+
+    <!-- Project 1: Restauranty -->
+    <article class="project-card">
+      <div class="project-head">
+        <div>
+          <span class="project-tag">Flagship project</span>
+          <h3 class="project-title">Restauranty — Azure AKS DevOps Platform</h3>
+          <p class="project-sub">Containerized microservices platform, deployed and operated on Azure Kubernetes Service, with an AI assistant wired into live cluster and security data.</p>
+        </div>
+        <a class="project-link" href="https://github.com/leorfy15/devops.restauranty" target="_blank" rel="noopener">
+          View repo &rarr;
+        </a>
+      </div>
+      <div class="project-body">
+        <div class="project-diagram">
+          <svg viewBox="0 0 460 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Restauranty architecture diagram">
+            <defs>
+              <marker id="arrow1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="#7c4fa0"/>
+              </marker>
+            </defs>
+            <style>
+              .box{fill:#ffffff;stroke:#7c4fa0;stroke-width:1.5;rx:6;}
+              .box2{fill:#7c4fa0;stroke:#7c4fa0;}
+              .lbl{font:600 11px system-ui, Arial; fill:#2a2233;}
+              .lbl-w{font:600 11px system-ui, Arial; fill:#ffffff;}
+              .sub{font:500 9px system-ui, Arial; fill:#6f6480;}
+              .edge{stroke:#7c4fa0; stroke-width:1.5; fill:none; marker-end:url(#arrow1);}
+            </style>
+
+            <rect x="150" y="10" width="160" height="34" rx="6" class="box2"/>
+            <text x="230" y="31" text-anchor="middle" class="lbl-w">Browser</text>
+
+            <line x1="230" y1="44" x2="230" y2="66" class="edge"/>
+
+            <rect x="130" y="66" width="200" height="34" rx="6" class="box"/>
+            <text x="230" y="87" text-anchor="middle" class="lbl">Ingress / HAProxy</text>
+
+            <line x1="180" y1="100" x2="90" y2="130" class="edge"/>
+            <line x1="230" y1="100" x2="230" y2="130" class="edge"/>
+            <line x1="280" y1="100" x2="370" y2="130" class="edge"/>
+
+            <rect x="20" y="130" width="140" height="34" rx="6" class="box"/>
+            <text x="90" y="151" text-anchor="middle" class="lbl">Auth service</text>
+
+            <rect x="160" y="130" width="140" height="34" rx="6" class="box"/>
+            <text x="230" y="151" text-anchor="middle" class="lbl">Items service</text>
+
+            <rect x="300" y="130" width="140" height="34" rx="6" class="box"/>
+            <text x="370" y="151" text-anchor="middle" class="lbl">Discounts service</text>
+
+            <line x1="90" y1="164" x2="220" y2="194" class="edge"/>
+            <line x1="230" y1="164" x2="230" y2="194" class="edge"/>
+            <line x1="370" y1="164" x2="240" y2="194" class="edge"/>
+
+            <rect x="160" y="194" width="140" height="34" rx="6" class="box"/>
+            <text x="230" y="215" text-anchor="middle" class="lbl">MongoDB</text>
+
+            <rect x="20" y="194" width="120" height="34" rx="6" class="box"/>
+            <text x="80" y="211" text-anchor="middle" class="lbl">AI Assistant</text>
+            <text x="80" y="223" text-anchor="middle" class="sub">approved ops only</text>
+            <line x1="80" y1="194" x2="90" y2="164" class="edge"/>
+
+            <rect x="20" y="250" width="200" height="46" rx="6" class="box"/>
+            <text x="120" y="270" text-anchor="middle" class="lbl">Prometheus / Grafana / Loki</text>
+            <text x="120" y="284" text-anchor="middle" class="sub">metrics, dashboards, logs</text>
+            <line x1="120" y1="250" x2="90" y2="164" stroke-dasharray="3,3" class="edge"/>
+
+            <rect x="240" y="250" width="200" height="46" rx="6" class="box"/>
+            <text x="340" y="270" text-anchor="middle" class="lbl">Cowrie Honeypot</text>
+            <text x="340" y="284" text-anchor="middle" class="sub">isolated namespace, SSH/Telnet</text>
+            <line x1="240" y1="273" x2="140" y2="273" stroke-dasharray="3,3" class="edge"/>
+
+            <rect x="20" y="316" width="420" height="30" rx="6" class="box" stroke-dasharray="4,3"/>
+            <text x="230" y="335" text-anchor="middle" class="sub">Docker images → Azure Container Registry → GitHub Actions CI/CD → Trivy scan → AKS</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="project-bullets">
+            <li>Containerized and deployed a multi-service app (React frontend, 3 Node/Express services, MongoDB) to Azure Kubernetes Service, with images stored in Azure Container Registry.</li>
+            <li>Built CI/CD foundations with GitHub Actions and Azure OIDC authentication, plus Kubernetes Ingress, DNS and TLS/HTTPS for externally accessible services.</li>
+            <li>Stood up observability with Prometheus, Grafana and Loki/Grafana Alloy for infrastructure, application and security monitoring.</li>
+            <li>Deployed a Cowrie SSH/Telnet honeypot in an isolated namespace and exposed recent attack activity through an AI-assisted operations interface.</li>
+            <li>Ran container vulnerability scanning with Trivy — surfaced real HIGH/CRITICAL findings in application images.</li>
+            <li>Troubleshot Kubernetes, networking, authentication, MongoDB and resource-management issues end-to-end with kubectl and logs.</li>
+          </ul>
+          <p class="project-callout">"Instead of manually going through logs, the goal was to ask &lsquo;are my pods healthy?&rsquo; or &lsquo;what commands did the attacker execute?&rsquo; — the assistant routes the request to an approved operation and returns a human-readable answer, never raw shell or database access."</p>
+        </div>
+      </div>
+      <div class="tech-pills">
+        <span class="tech-pill">AKS</span><span class="tech-pill">Docker</span><span class="tech-pill">ACR</span>
+        <span class="tech-pill">GitHub Actions</span><span class="tech-pill">Azure OIDC</span>
+        <span class="tech-pill">Prometheus</span><span class="tech-pill">Grafana</span><span class="tech-pill">Loki</span>
+        <span class="tech-pill">Trivy</span><span class="tech-pill">Cowrie</span><span class="tech-pill">MongoDB</span>
+      </div>
+    </article>
+
+    <!-- Project 2: Voting App -->
+    <article class="project-card">
+      <div class="project-head">
+        <div>
+          <span class="project-tag secondary">Second project</span>
+          <h3 class="project-title">Cloud-Native Voting Application — AWS EKS</h3>
+          <p class="project-sub">Multi-stack distributed voting app, provisioned end to end on AWS with Terraform.</p>
+        </div>
+        <a class="project-link" href="https://github.com/leorfy15/ironhack-project-1c" target="_blank" rel="noopener">
+          View repo &rarr;
+        </a>
+      </div>
+      <div class="project-body">
+        <div class="project-diagram">
+          <svg viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Voting app architecture diagram">
+            <defs>
+              <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="#7c4fa0"/>
+              </marker>
+            </defs>
+            <style>
+              .box{fill:#ffffff;stroke:#7c4fa0;stroke-width:1.5;}
+              .lbl{font:600 11px system-ui, Arial; fill:#2a2233;}
+              .sub{font:500 9px system-ui, Arial; fill:#6f6480;}
+              .edge2{stroke:#7c4fa0; stroke-width:1.5; fill:none; marker-end:url(#arrow2);}
+            </style>
+
+            <rect x="10" y="30" width="100" height="34" rx="6" class="box"/>
+            <text x="60" y="51" text-anchor="middle" class="lbl">Vote (Python)</text>
+
+            <line x1="110" y1="47" x2="160" y2="47" class="edge2"/>
+            <rect x="160" y="30" width="100" height="34" rx="6" class="box"/>
+            <text x="210" y="51" text-anchor="middle" class="lbl">Redis</text>
+
+            <line x1="260" y1="47" x2="310" y2="47" class="edge2"/>
+            <rect x="310" y="30" width="120" height="34" rx="6" class="box"/>
+            <text x="370" y="51" text-anchor="middle" class="lbl">Worker (.NET)</text>
+
+            <line x1="370" y1="64" x2="370" y2="100" class="edge2"/>
+            <rect x="310" y="100" width="120" height="34" rx="6" class="box"/>
+            <text x="370" y="121" text-anchor="middle" class="lbl">Postgres</text>
+
+            <line x1="310" y1="117" x2="120" y2="117" class="edge2"/>
+            <rect x="10" y="100" width="110" height="34" rx="6" class="box"/>
+            <text x="65" y="121" text-anchor="middle" class="lbl">Result (Node.js)</text>
+
+            <rect x="10" y="160" width="420" height="120" rx="6" class="box" stroke-dasharray="4,3"/>
+            <text x="230" y="180" text-anchor="middle" class="lbl">AWS EKS</text>
+            <text x="230" y="198" text-anchor="middle" class="sub">Terraform-provisioned VPC — public/private subnets, NAT GW, security groups</text>
+            <text x="230" y="216" text-anchor="middle" class="sub">NGINX Ingress + Route 53 DNS + cert-manager HTTPS</text>
+            <text x="230" y="234" text-anchor="middle" class="sub">Horizontal Pod Autoscaler, load-tested</text>
+            <text x="230" y="252" text-anchor="middle" class="sub">S3 + DynamoDB remote Terraform state locking</text>
+            <text x="230" y="270" text-anchor="middle" class="sub">EC2 nodes · Ansible bootstrap</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="project-bullets">
+            <li>Designed and deployed a microservices voting application (Python Flask, Redis, .NET worker, PostgreSQL, Node.js) using Docker, Kubernetes and Amazon EKS.</li>
+            <li>Provisioned AWS infrastructure with Terraform, including VPC, public/private subnets, route tables, NAT Gateway, security groups, EC2 and S3/DynamoDB remote state locking.</li>
+            <li>Configured NGINX Ingress, Route 53 DNS, cert-manager HTTPS and Horizontal Pod Autoscaling.</li>
+            <li>Troubleshot DNS, TLS, networking, CPU resource requests and Kubernetes deployment issues with kubectl and Linux tooling.</li>
+            <li>Load-tested the Horizontal Pod Autoscaler against the voting traffic path.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tech-pills">
+        <span class="tech-pill">AWS EKS</span><span class="tech-pill">Terraform</span><span class="tech-pill">Docker</span>
+        <span class="tech-pill">NGINX Ingress</span><span class="tech-pill">Route 53</span><span class="tech-pill">cert-manager</span>
+        <span class="tech-pill">HPA</span><span class="tech-pill">Ansible</span><span class="tech-pill">PostgreSQL</span><span class="tech-pill">Redis</span>
+      </div>
+    </article>
+  </section>
+
+  <section id="experience">
+    <div class="card">
+      <h2 class="section-title">Experience</h2>
+      <div class="timeline-item">
+        <div class="timeline-marker">
+          <div class="node"></div>
+          <div class="line"></div>
+        </div>
+        <div class="timeline-content">
+          <h3 class="timeline-role">Supervisor / Team Leader</h3>
+          <p class="timeline-org">DHL Freight Netherlands &middot; 2022 &ndash; Present</p>
+          <ul>
+            <li>Lead a team of seven and coordinate international transport and fleet operations across the Netherlands and Germany.</li>
+            <li>Manage operational KPIs, service levels, customer requirements and issue resolution in a time-critical environment.</li>
+            <li>Reduced operational costs by approximately 10% through process improvements and better resource planning.</li>
+            <li>Improved operational visibility, onboarded new customers and supported cross-functional projects.</li>
+            <li>Coach team members, handle escalations and apply root-cause problem solving to operational incidents.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="education">
+    <div class="card">
+      <h2 class="section-title">Education &amp; Certifications</h2>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>DevOps Engineering Bootcamp — Ironhack</h3>
+          <p class="meta">Expected completion: September 2026</p>
+          <p>Core topics: Linux, Git, Python, Docker, Kubernetes, Terraform, AWS, Microsoft Azure, CI/CD, networking, observability and Infrastructure as Code.</p>
+        </div>
+        <div class="info-block">
+          <h3>Certifications &amp; Languages</h3>
+          <div class="badge-row">
+            <span class="badge"><span class="ico">&#10003;</span> AWS Cloud Practitioner</span>
+            <span class="badge"><span class="ico">&#10003;</span> Lean Green Belt</span>
+          </div>
+          <p class="meta" style="margin-top:14px;">Romanian — Native &middot; English — Fluent &middot; Dutch — A2</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="contact-card">
+      <h2>Let's connect</h2>
+      <p>Open to Junior DevOps Engineer roles — happy to talk about infrastructure, Kubernetes or how I use AI as an operational pair engineer.</p>
+      <div class="contact-links">
+        <a class="btn btn-primary" href="mailto:tatianatudor@icloud.com">tatianatudor@icloud.com</a>
+        <a class="btn btn-outline" href="https://github.com/Leorfy15" target="_blank" rel="noopener">github.com/Leorfy15</a>
+        <a class="btn btn-outline" href="assets/Tatiana-Tudor-CV.pdf" target="_blank" rel="noopener">Download CV</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  &copy; <span id="year"></span> Tatiana Tudor &middot; Built with a DevOps CI/CD pipeline of its own
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

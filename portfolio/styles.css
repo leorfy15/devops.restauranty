@@ -377,6 +377,32 @@ section {
   margin: -8px 0 20px;
 }
 
+/* oversized outline section marker, in the spirit of a bold portfolio wordmark */
+.kicker {
+  font-size: clamp(2.6rem, 8vw, 5.5rem);
+  font-weight: 800;
+  line-height: 0.88;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+  padding-left: 4px;
+  color: var(--accent-light);
+  -webkit-text-stroke: 1.5px var(--accent);
+  user-select: none;
+}
+
+.about-lead {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 16px !important;
+  color: var(--text);
+}
+
+.about-text .accent {
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
 .about-text p {
   margin: 0 0 12px;
   color: var(--text);
@@ -457,6 +483,15 @@ section {
   background: var(--text-secondary);
 }
 
+.project-tag.floating {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin-bottom: 0;
+  box-shadow: 0 2px 8px rgba(91, 58, 135, 0.25);
+  z-index: 1;
+}
+
 .project-title {
   font-size: 1.25rem;
   font-weight: 700;
@@ -495,6 +530,7 @@ section {
 }
 
 .project-diagram {
+  position: relative;
   background: var(--accent-light);
   border-radius: var(--radius);
   padding: 16px;
@@ -544,6 +580,33 @@ section {
   border: 1px solid var(--border);
   padding: 3px 10px;
   border-radius: 999px;
+}
+
+.project-footer {
+  padding: 4px 32px 26px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.see-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-dark);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.see-more:hover {
+  color: var(--accent);
+}
+
+.see-more span {
+  font-size: 1rem;
 }
 
 @media (max-width: 720px) {
@@ -664,12 +727,31 @@ section {
 
 .contact-card h2 {
   margin: 0 0 8px;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.contact-card h2 .accent {
+  color: var(--white);
 }
 
 .contact-card p {
   margin: 0 0 24px;
   color: #dce8fb;
+}
+
+.contact-textlink {
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.contact-textlink:hover {
+  color: var(--white);
 }
 
 .contact-links {

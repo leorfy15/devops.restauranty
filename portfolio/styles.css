@@ -60,7 +60,7 @@ body {
 
 .p-flower {
   position: absolute;
-  animation-name: flowerSway;
+  animation-name: flowerFly;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
@@ -77,13 +77,59 @@ body {
   opacity: 0.9;
 }
 
-@keyframes flowerSway {
-  0%,
-  100% {
-    transform: translateY(0) rotate(var(--r, 0deg));
+@keyframes flowerFly {
+  0% {
+    transform: translate(0, 0) rotate(var(--r, 0deg));
+  }
+  25% {
+    transform: translate(10px, -20px) rotate(calc(var(--r, 0deg) + 10deg));
   }
   50% {
-    transform: translateY(-10px) rotate(calc(var(--r, 0deg) + 6deg));
+    transform: translate(-8px, -34px) rotate(calc(var(--r, 0deg) - 6deg));
+  }
+  75% {
+    transform: translate(12px, -16px) rotate(calc(var(--r, 0deg) + 5deg));
+  }
+  100% {
+    transform: translate(0, 0) rotate(var(--r, 0deg));
+  }
+}
+
+/* Small circuit/node glyphs, mixed in with the flowers for a tech + sakura feel */
+.p-tech {
+  position: absolute;
+  animation-name: techPulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.p-tech path {
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  opacity: 0.6;
+}
+
+.p-tech circle {
+  fill: var(--accent-dark);
+  opacity: 0.75;
+}
+
+.p-tech circle.node-center {
+  fill: none;
+  stroke: var(--accent-dark);
+  stroke-width: 1.4;
+  opacity: 0.7;
+}
+
+@keyframes techPulse {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--r, 0deg)) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-16px) rotate(calc(var(--r, 0deg) - 8deg)) scale(1.12);
+    opacity: 1;
   }
 }
 
@@ -94,7 +140,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .p-flower {
+  .p-flower,
+  .p-tech {
     animation: none;
   }
 }
@@ -597,6 +644,8 @@ section {
 }
 
 .tech-pill {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -604,6 +653,20 @@ section {
   border: 1px solid var(--border);
   padding: 3px 10px;
   border-radius: 999px;
+}
+
+.tech-pill.highlight {
+  color: var(--accent-dark);
+  background: var(--accent-pale);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.tech-pill-icon {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  flex-shrink: 0;
 }
 
 .project-footer {
@@ -694,50 +757,84 @@ section {
 }
 
 /* Education / certs */
-.two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+.edu-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 24px;
 }
 
-@media (max-width: 720px) {
-  .two-col {
-    grid-template-columns: 1fr;
-  }
+.edu-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.info-block h3 {
+.edu-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.edu-row h3 {
   font-size: 1rem;
-  margin: 0 0 4px;
+  margin: 4px 0 4px;
 }
 
-.info-block p.meta {
+.edu-row p.meta {
   color: var(--text-secondary);
   font-size: 0.85rem;
   margin: 0 0 10px;
 }
 
-.badge-row {
+.cert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.cert-card {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.badge {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: var(--white);
+  gap: 14px;
+  background: var(--accent-pale);
   border: 1px solid var(--border);
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border-radius: var(--radius);
+  padding: 16px 18px;
 }
 
-.badge .ico {
-  color: var(--accent);
+.cert-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--accent-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+
+.cert-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.cert-card h4 {
+  margin: 0 0 2px;
+  font-size: 0.95rem;
+}
+
+.cert-card p.meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 /* Recommendation */

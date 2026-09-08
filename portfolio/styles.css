@@ -1014,6 +1014,22 @@ footer.site-footer {
   font-size: 0.82rem;
 }
 
+footer.site-footer p {
+  margin: 0;
+}
+
+footer.site-footer p + p {
+  margin-top: 8px;
+}
+
+footer.site-footer .footer-note {
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.76rem;
+  opacity: 0.75;
+}
+
 @media (max-width: 640px) {
   .testimonial-card {
     flex-direction: column;

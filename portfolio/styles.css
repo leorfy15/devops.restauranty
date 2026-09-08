@@ -77,6 +77,19 @@ body {
   opacity: 0.9;
 }
 
+.p-flower line {
+  stroke: var(--accent-dark);
+  stroke-width: 0.8;
+  opacity: 0.75;
+}
+
+.p-flower rect {
+  fill: #ffffff;
+  stroke: var(--accent-dark);
+  stroke-width: 1.4;
+  opacity: 0.9;
+}
+
 @keyframes flowerFly {
   0% {
     transform: translate(0, 0) rotate(var(--r, 0deg));

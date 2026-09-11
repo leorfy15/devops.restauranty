@@ -96,7 +96,7 @@
       <h2 class="section-title">About</h2>
       <div class="about-text">
         <p>DevOps &amp; Cloud Engineer transitioning from several years of operations leadership into infrastructure engineering, with hands-on experience building, deploying and troubleshooting cloud-native environments across Azure and AWS using Kubernetes, Terraform, Docker, CI/CD and observability tooling.</p>
-        <p>I bring an operations mindset to engineering: understanding failures, finding root causes and improving systems rather than just keeping them running. That shows up in production-style projects on AKS and EKS, and in a supervisory role at DHL Freight — team management, incident resolution, process optimization and roughly a 10% operational cost reduction.</p>
+        <p>I bring an operations mindset to engineering: understanding failures, finding root causes and improving systems rather than just keeping them running. That shows up in production-style projects on AKS and EKS, and in a progressive career at DHL — from warehouse and customs operations to transport planning and, since 2022, leading a seven-person fleet team with roughly a 10% operational cost reduction.</p>
         <p>Career transition in progress: from leading transport and fleet operations to building and operating cloud-native infrastructure — same underlying skill, keeping a complex, time-critical system running and improving it deliberately.</p>
         <p>Also following where the discipline is heading next — Site Reliability Engineering as DevOps applied to production reliability at scale, and MLOps as the same principles applied to shipping and operating machine learning systems.</p>
       </div>
@@ -111,30 +111,37 @@
           <h3>Cloud</h3>
           <div class="pill-row">
             <span class="pill">Azure AKS</span><span class="pill">ACR</span>
+            <span class="pill">Azure VMs</span><span class="pill">Azure Files</span>
             <span class="pill">Entra ID / OIDC</span><span class="pill">Azure Networking</span>
             <span class="pill">AWS EKS</span><span class="pill">EC2</span>
             <span class="pill">VPC</span><span class="pill">IAM</span><span class="pill">S3</span>
+            <span class="pill">DynamoDB</span><span class="pill">ECR</span>
+            <span class="pill">CloudFront</span><span class="pill">ALB</span>
+            <span class="pill">Azure CLI</span><span class="pill">AWS CLI</span>
           </div>
         </div>
         <div class="skill-group">
           <h3>Containers &amp; IaC</h3>
           <div class="pill-row">
             <span class="pill">Kubernetes</span><span class="pill">Docker</span>
-            <span class="pill">Helm</span><span class="pill">Terraform</span><span class="pill">Ansible</span>
+            <span class="pill">Helm</span><span class="pill">NGINX Ingress</span>
+            <span class="pill">Horizontal Pod Autoscaler</span><span class="pill">Metrics Server</span>
+            <span class="pill">Terraform</span>
           </div>
         </div>
         <div class="skill-group">
           <h3>CI/CD &amp; Automation</h3>
           <div class="pill-row">
             <span class="pill">GitHub Actions</span><span class="pill">OIDC</span>
-            <span class="pill">Git</span><span class="pill">Bash</span><span class="pill">Python</span>
+            <span class="pill">Ansible</span><span class="pill">Git</span><span class="pill">GitHub</span>
+            <span class="pill">Bash</span><span class="pill">Python</span>
           </div>
         </div>
         <div class="skill-group">
           <h3>Observability</h3>
           <div class="pill-row">
             <span class="pill">Prometheus</span><span class="pill">Grafana</span>
-            <span class="pill">Loki</span><span class="pill">Grafana Alloy</span>
+            <span class="pill">Loki</span><span class="pill">Grafana Alloy</span><span class="pill">Node Exporter</span>
           </div>
         </div>
         <div class="skill-group">
@@ -147,8 +154,15 @@
         <div class="skill-group">
           <h3>Security &amp; Ops</h3>
           <div class="pill-row">
-            <span class="pill">Trivy</span><span class="pill">Cowrie</span><span class="pill">TLS</span>
+            <span class="pill">Trivy</span><span class="pill">Cowrie</span><span class="pill">TLS / SSL</span>
             <span class="pill">Kubernetes Secrets</span><span class="pill">Linux</span><span class="pill">kubectl</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <h3>Soft Skills</h3>
+          <div class="pill-row">
+            <span class="pill">Operational ownership</span><span class="pill">Root-cause problem solving</span>
+            <span class="pill">Cross-functional communication</span><span class="pill">Team leadership &amp; coaching</span>
           </div>
         </div>
       </div>
@@ -191,7 +205,7 @@
             <line x1="230" y1="44" x2="230" y2="66" class="edge"/>
 
             <rect x="130" y="66" width="200" height="34" rx="6" class="box"/>
-            <text x="230" y="87" text-anchor="middle" class="lbl">Ingress / HAProxy</text>
+            <text x="230" y="87" text-anchor="middle" class="lbl">NGINX Ingress</text>
 
             <line x1="180" y1="100" x2="90" y2="130" class="edge"/>
             <line x1="230" y1="100" x2="230" y2="130" class="edge"/>
@@ -233,18 +247,17 @@
         </div>
         <div>
           <ul class="project-bullets">
-            <li>Designed and operated a production-style Kubernetes platform on Azure AKS for a containerized microservices application (React frontend, 3 Node/Express services, MongoDB), with images in Azure Container Registry.</li>
-            <li>Built CI/CD foundations with GitHub Actions and passwordless Azure OIDC authentication — reducing reliance on long-lived cloud credentials — plus Kubernetes Ingress, DNS and TLS/HTTPS for externally accessible REST APIs.</li>
-            <li>Implemented observability with Prometheus, Grafana, Loki and Grafana Alloy across infrastructure, application and security events.</li>
-            <li>Integrated a Cowrie SSH/Telnet honeypot with an AI-assisted operational interface that retrieves platform health and recent security events.</li>
-            <li>Performed Trivy vulnerability scanning — surfaced real HIGH/CRITICAL findings in application images.</li>
-            <li>Diagnosed deployment failures involving Kubernetes networking, authentication, MongoDB connectivity, application dependencies and resource configuration, using kubectl, logs, events and Linux tooling.</li>
+            <li>Solved inconsistent multi-service deployment by containerizing four core application services with Docker and deploying them to Azure Kubernetes Service (AKS) through Azure Container Registry and Kubernetes, creating a repeatable production-style cloud environment.</li>
+            <li>Removed manual release and credential-handling risk by implementing GitHub Actions, passwordless Azure OIDC, NGINX Ingress, DNS and TLS/HTTPS, enabling repeatable secure deployments and externally accessible services without storing long-lived cloud credentials.</li>
+            <li>Addressed limited operational and security visibility by centralizing metrics and logs for 6+ components with Prometheus, Grafana, Loki/Grafana Alloy and Cowrie, then exposing security summaries (auto-generated every 60 minutes) through an AI-assisted API — reducing investigation from multiple kubectl/log searches to a single operational view.</li>
+            <li>Tackled container risk and runtime instability with Trivy, kubectl and Linux troubleshooting, surfacing 50+ HIGH/CRITICAL image findings and resolving networking, authentication, MongoDB and resource-management incidents to create a prioritized remediation backlog and improve platform stability.</li>
           </ul>
           <p class="project-callout">"Instead of manually going through logs, the goal was to ask &lsquo;are my pods healthy?&rsquo; or &lsquo;what commands did the attacker execute?&rsquo; — the assistant routes the request to an approved operation and returns a human-readable answer, never raw shell or database access."</p>
         </div>
       </div>
       <div class="tech-pills">
         <span class="tech-pill">AKS</span><span class="tech-pill">Docker</span><span class="tech-pill">ACR</span>
+        <span class="tech-pill">NGINX Ingress</span>
         <span class="tech-pill highlight"><svg class="tech-pill-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 8c0-1.4 1.1-2.4 2.3-1.3S8.5 8 9.7 8c1.1-1.1 2.3-.1 2.3 1.3s-1.1 2.4-2.3 1.3S8.5 8 7.3 8c-1.1 1.1-2.3.1-2.3-1.3z"/></svg>GitHub Actions</span>
         <span class="tech-pill">Azure OIDC</span>
         <span class="tech-pill highlight"><svg class="tech-pill-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2c1.8 2.2 3.1 3.8 3.1 5.9a3.1 3.1 0 01-6.2 0c0-1 .4-1.7.9-2.2-.1.9.3 1.2.7.8.3-.5-.2-1.2 0-1.9.3.6 1 .6 1.2-.2.2-.9-.3-1.4.3-2.4z"/></svg>Prometheus</span>
@@ -305,18 +318,17 @@
             <text x="230" y="180" text-anchor="middle" class="lbl">AWS EKS</text>
             <text x="230" y="198" text-anchor="middle" class="sub">Terraform-provisioned VPC — public/private subnets, NAT GW, security groups</text>
             <text x="230" y="216" text-anchor="middle" class="sub">NGINX Ingress + Route 53 DNS + cert-manager HTTPS</text>
-            <text x="230" y="234" text-anchor="middle" class="sub">Horizontal Pod Autoscaler, load-tested</text>
+            <text x="230" y="234" text-anchor="middle" class="sub">Prometheus + Grafana + Node Exporter, HPA load-tested</text>
             <text x="230" y="252" text-anchor="middle" class="sub">S3 + DynamoDB remote Terraform state locking</text>
-            <text x="230" y="270" text-anchor="middle" class="sub">EC2 nodes · Ansible bootstrap</text>
+            <text x="230" y="270" text-anchor="middle" class="sub">2 EC2 nodes · 28 pods · 32 containers · Ansible bootstrap</text>
           </svg>
         </div>
         <div>
           <ul class="project-bullets">
-            <li>Provisioned AWS infrastructure with Terraform, including VPC, public/private subnets, route tables, NAT Gateway, security groups, EC2, S3 remote state and DynamoDB state locking.</li>
-            <li>Deployed a Docker-based microservices voting application (Python Flask, Redis, .NET worker, PostgreSQL, Node.js) to Amazon EKS.</li>
-            <li>Configured NGINX Ingress, Route 53 DNS, cert-manager HTTPS and Horizontal Pod Autoscaling.</li>
-            <li>Troubleshot DNS, TLS, networking and CPU resource-request issues with kubectl and Linux tooling.</li>
-            <li>Load-tested the Horizontal Pod Autoscaler against the voting traffic path.</li>
+            <li>Solved orchestration of a five-component voting application by containerizing vote, result, worker, PostgreSQL and Redis with Docker and deploying them on Amazon EKS with Kubernetes, producing a working end-to-end microservices environment.</li>
+            <li>Replaced error-prone manual AWS provisioning with Terraform for VPC networking, EC2, S3 and DynamoDB remote-state locking, making the infrastructure version-controlled, reproducible and safer to rebuild.</li>
+            <li>Addressed secure access, scaling and observability with NGINX Ingress, Route 53, cert-manager, HPA, Prometheus, Grafana and Node Exporter, delivering HTTPS access and real-time visibility across a 2-node cluster with 28 pods and 32 running containers.</li>
+            <li>Resolved deployment failures caused by DNS, TLS, networking and CPU resource-request issues using kubectl, Linux tooling and Kubernetes diagnostics, restoring workloads and strengthening cluster reliability through root-cause fixes.</li>
           </ul>
         </div>
       </div>
@@ -326,6 +338,9 @@
         <span class="tech-pill highlight"><svg class="tech-pill-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><rect x="3" y="8" width="2.6" height="2.6"/><rect x="6" y="8" width="2.6" height="2.6"/><rect x="9" y="8" width="2.6" height="2.6"/><rect x="6" y="4.5" width="2.6" height="2.6"/><path d="M2 10.5c1.2 1.7 3.7 2.6 6.3 2.6s5-.9 6.3-2.6"/></svg>Docker</span>
         <span class="tech-pill">NGINX Ingress</span><span class="tech-pill">Route 53</span><span class="tech-pill">cert-manager</span>
         <span class="tech-pill highlight"><svg class="tech-pill-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3H3v2M3 3l3 3"/><path d="M11 13h2v-2M13 13l-3-3"/></svg>HPA</span>
+        <span class="tech-pill highlight"><svg class="tech-pill-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2c1.8 2.2 3.1 3.8 3.1 5.9a3.1 3.1 0 01-6.2 0c0-1 .4-1.7.9-2.2-.1.9.3 1.2.7.8.3-.5-.2-1.2 0-1.9.3.6 1 .6 1.2-.2.2-.9-.3-1.4.3-2.4z"/></svg>Prometheus</span>
+        <span class="tech-pill highlight"><svg class="tech-pill-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M11.4 5.7A3.7 3.7 0 108 11.4a2.5 2.5 0 104.6-1.2"/><circle cx="8" cy="8" r="0.8" fill="currentColor" stroke="none"/></svg>Grafana</span>
+        <span class="tech-pill highlight"><svg class="tech-pill-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V6M6.3 12V3M9.7 12V8M13 12V5"/></svg>Node Exporter</span>
         <span class="tech-pill">Ansible</span><span class="tech-pill">PostgreSQL</span><span class="tech-pill">Redis</span>
       </div>
       <div class="project-footer">
@@ -346,9 +361,27 @@
           <h3 class="timeline-role">Supervisor / Team Leader</h3>
           <p class="timeline-org">DHL Freight Netherlands &middot; 2022 &ndash; Present</p>
           <ul>
-            <li>Lead a seven-person team responsible for time-critical international transport and fleet operations across the Netherlands and Germany, coordinating incidents, escalations and competing operational priorities.</li>
-            <li>Use root-cause analysis, KPI monitoring and continuous improvement to identify recurring operational problems and implement structural solutions.</li>
-            <li>Reduced operational costs by approximately 10% through process optimization and resource planning, while improving operational visibility and supporting cross-functional customer implementations.</li>
+            <li>Reduced operational costs by approximately 10% by redesigning planning and resource allocation across a 52-truck fleet, improving efficiency while maintaining service continuity for international transport operations.</li>
+            <li>Lead a seven-person team and coordinate cross-border fleet operations across the Netherlands and Germany, using KPI ownership, service-level management and escalation handling to keep time-critical customer commitments on track.</li>
+            <li>Improved cross-department execution by coordinating process changes and new-customer implementations with multiple DHL teams and stakeholders, creating clearer handoffs and helping new workflows move into stable daily operations.</li>
+            <li>Closed planning-visibility gaps by introducing a dummy-order tracking approach and improving shared planning processes, giving teams clearer visibility of capacity and workload and enabling faster exception handling.</li>
+            <li>Restructured team workflows and responsibilities and coached colleagues through root-cause problem solving, strengthening ownership, consistency and continuity when operational disruptions occurred.</li>
+            <li>Earned an Employee of the Year nomination in recognition of operational performance, continuous-improvement contributions and impact beyond day-to-day team responsibilities.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-marker">
+          <div class="node"></div>
+          <div class="line"></div>
+        </div>
+        <div class="timeline-content">
+          <h3 class="timeline-role">Earlier DHL Career Progression</h3>
+          <p class="timeline-org">DHL Freight &amp; DHL Supply Chain Netherlands</p>
+          <ul>
+            <li><strong>Planner</strong>, DHL Freight Netherlands (~1 year, prior to 2022) &mdash; planned daily international transport for the same Germany-focused operation, balancing fleet capacity, customer requirements and disruptions; built the operational knowledge that supported progression into the Supervisor role.</li>
+            <li><strong>Customs Operations &ndash; ASML Account</strong>, DHL Supply Chain (~4 years) &mdash; handled time-critical customs processes for the ASML account, coordinating documentation and cross-functional stakeholders to keep import/export flows compliant under tight deadlines.</li>
+            <li><strong>Warehouse Operations</strong>, DHL Supply Chain (8 months) &mdash; supported inbound, outbound and inventory activities, building hands-on understanding of end-to-end operational flow and frontline execution.</li>
           </ul>
         </div>
       </div>
@@ -367,6 +400,17 @@
           <h3>DevOps Engineering Bootcamp — Ironhack</h3>
           <p class="meta">Expected completion: September 2026</p>
           <p>Core topics: DevOps &amp; Agile/Scrum, Cloud Computing on AWS &amp; Microsoft Azure, Docker &amp; Kubernetes, CI/CD pipelines, Infrastructure as Code with Terraform, distributed systems &amp; cloud architecture, cloud security &amp; compliance, Linux and Git.</p>
+        </div>
+      </div>
+
+      <div class="edu-row">
+        <div class="edu-icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l12-6 12 6-12 6-12-6z"/><path d="M10 15v6c0 1.7 2.7 3 6 3s6-1.3 6-3v-6"/><path d="M28 12v8"/></svg>
+        </div>
+        <div>
+          <h3>Chemical Engineering &mdash; University POLITEHNICA of Bucharest</h3>
+          <p class="meta">Romania</p>
+          <p>Completed 4 years of coursework, developing a strong foundation in analytical thinking, technical problem solving and structured scientific work.</p>
         </div>
       </div>
 

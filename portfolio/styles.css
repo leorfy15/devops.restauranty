@@ -769,6 +769,10 @@ section {
   margin-bottom: 6px;
 }
 
+.timeline-item:last-child .line {
+  display: none;
+}
+
 /* Education / certs */
 .edu-row {
   display: flex;
